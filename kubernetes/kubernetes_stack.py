@@ -251,7 +251,7 @@ class KubernetesStack(Stack):
         super_user = _iam.User.from_user_arn(
             self,
             "iam-user",
-            user_arn=f"arn:aws:iam::{Aws.ACCOUNT_ID}:user/{add_user_iam_arn}"
+            user_arn=f"arn:aws:iam::{Aws.ACCOUNT_ID}:user/Derrick"
         )
 
         self.eks_cluster.aws_auth.add_user_mapping(
