@@ -17,11 +17,11 @@ class VpcStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
 
-        self.vpcflowlogrole = _iam.Role(self, "vpcflowlogsrole",
+        vpcflowlogrole = _iam.Role(self, "vpcflowlogsrole",
                 assumed_by=_iam.ServicePrincipal("vpc-flow-logs.amazonaws.com"),
                 path="/"
         )
-        self.vpcflowlogrole.attach_inline_policy(
+        vpcflowlogrole.attach_inline_policy(
             _iam.Policy(
                 self, 
                 "vpcflowlogspolicy",
@@ -43,7 +43,7 @@ class VpcStack(Stack):
         )
 
         # create a log group for vpc flow logs
-        self.vpcflowloggroup = logs.LogGroup(
+        vpcflowloggroup = logs.LogGroup(
             self, 
             "vpcflowloggroup",
             log_group_name=f"/VPCforEKS/vpcflowlogs",
@@ -52,7 +52,7 @@ class VpcStack(Stack):
         )
 
         # create a flow log bucket
-        self.log_bucket = s3.Bucket(
+        log_bucket = s3.Bucket(
             self,
             "vpcflowlogsbucket",
             bucket_name=f"vpcflowlogs-{Aws.ACCOUNT_ID}",
@@ -65,7 +65,7 @@ class VpcStack(Stack):
         )
 
         # create a vpc
-        self.vpc = ec2.Vpc(self, "BaseVpc",
+        self.out_vpc = ec2.Vpc(self, "VPC",
           ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
           availability_zones=[f"{Aws.REGION}a", f"{Aws.REGION}b"],
           create_internet_gateway=True,
@@ -92,31 +92,31 @@ class VpcStack(Stack):
             )
           }
         )
-        Tags.of(self.vpc.private_subnets[0]).add("kubernetes.io/role/internal-elb", "1")
-        Tags.of(self.vpc.private_subnets[1]).add("kubernetes.io/role/internal-elb", "1")
+        Tags.of(self.out_vpc.private_subnets[0]).add("kubernetes.io/role/internal-elb", "1")
+        Tags.of(self.out_vpc.private_subnets[1]).add("kubernetes.io/role/internal-elb", "1")
 
         # create vpc flow logs for cloudwatch
-        self.ec2_vpc_to_cloudwatch_flowlog = ec2.FlowLog(self, "cloudwatch-FlowLog",
+        ec2_vpc_to_cloudwatch_flowlog = ec2.FlowLog(self, "cloudwatch-FlowLog",
           traffic_type=ec2.FlowLogTrafficType.ALL,
           flow_log_name="vpc-cw-flowlogs",                                        
           resource_type=ec2.FlowLogResourceType.from_vpc(self.vpc),
-          destination=ec2.FlowLogDestination.to_cloud_watch_logs(self.vpcflowloggroup, self.vpcflowlogrole)
+          destination=ec2.FlowLogDestination.to_cloud_watch_logs(vpcflowloggroup, vpcflowlogrole)
          )
         
         # create vpc flow logs for s3
-        self.ec2_vpc_to_s3_flowlog = ec2.FlowLog(self, "s3-FlowLog",
+        ec2_vpc_to_s3_flowlog = ec2.FlowLog(self, "s3-FlowLog",
           traffic_type=ec2.FlowLogTrafficType.ALL,
           flow_log_name="vpc-s3-flowlogs",                           
           resource_type=ec2.FlowLogResourceType.from_vpc(self.vpc),
           destination=ec2.FlowLogDestination.to_s3(
-                      bucket=self.log_bucket,
+                      bucket=log_bucket,
                       key_prefix="vpcflowlogs"
                 )        
         )
 
         eks_cluster_sg = ec2.SecurityGroup(
             self, "EKSClusterSG",
-            vpc=self.vpc,
+            vpc=self.out_vpc,
             allow_all_outbound=True,
             security_group_name="eks_cluster-sg"    
         )
@@ -143,10 +143,9 @@ class VpcStack(Stack):
         #      private_dns_enabled=True,
         #      subnets=ec2.SubnetSelection(subnets=self.vpc.private_subnets)
         #   )
-
-        CfnOutput(self, "VPC ID", value=self.vpc.vpc_id, export_name="VPCID")
+       
         CfnOutput(self, "EKS SEC GROUP", value=eks_cluster_sg.security_group_id, export_name="EKSSecurityGroupID")
-        CfnOutput(self, "PrivateSubnet1", value=self.vpc.private_subnets[0].subnet_id, export_name="PrivateSubnet1")
-        CfnOutput(self, "PrivateSubnet2", value=self.vpc.private_subnets[1].subnet_id, export_name="PrivateSubnet2")
-        CfnOutput(self, "PrivateSubnetRouteTableID1", value=self.vpc.private_subnets[0].route_table.route_table_id, export_name="PrivateSubnetRouteTableID1")
-        CfnOutput(self, "PrivateSubnetRouteTableID2", value=self.vpc.private_subnets[1].route_table.route_table_id, export_name="PrivateSubnetRouteTableID2")
+        
+    @property
+    def vpc(self) -> ec2.Vpc:
+        return self.out_vpc

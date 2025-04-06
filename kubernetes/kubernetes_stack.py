@@ -23,26 +23,15 @@ def create_eks_thumbprint():
 
 class KubernetesStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, vpc: ec2.IVpc, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         thumbprint = create_eks_thumbprint()
         policy_statements = RolePolicyStatements()
         helm_values = HelmValues()
         clustername = "EKSSpark"
-        vpc = ec2.Vpc.from_vpc_attributes(
-            self, "VPC",
-            vpc_id=Fn.import_value("VPCID"),
-            availability_zones=[f"{Aws.REGION}-a", f"{Aws.REGION}-b"],
-            private_subnet_ids=[
-                Fn.import_value("PrivateSubnet1"),
-                Fn.import_value("PrivateSubnet2")
-            ],
-            private_subnet_route_table_ids=[
-                Fn.import_value("PrivateSubnetRouteTableID1"),
-                Fn.import_value("PrivateSubnetRouteTableID2")
-            ]
-        )       
+        imported_vpc = vpc
+
         eks_sec_group = ec2.SecurityGroup.from_security_group_id(self, "EKSSecurityGroup", Fn.import_value("EKSSecurityGroupID"))
                
         master_role = _iam.Role(
@@ -89,18 +78,18 @@ class KubernetesStack(Stack):
             cluster_name = clustername,
             masters_role=master_role,
             role=cluster_role,
-            vpc=vpc,
+            vpc=imported_vpc,
             vpc_subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)],
             security_group=eks_sec_group
         )
    
         # pod identity role
-        self.pod_role = _iam.Role(
+        pod_role = _iam.Role(
             self, "PodIdentityRole",
             assumed_by=_iam.ServicePrincipal("pods.eks.amazonaws.com"),
             description="IAM role for EKS Pod Identity"
         )
-        self.pod_role.add_to_policy(_iam.PolicyStatement(
+        pod_role.add_to_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
                 "s3:GetObject",
@@ -114,26 +103,26 @@ class KubernetesStack(Stack):
         )
 
         # Create a service account with Pod Identity
-        self.pod_service_account = eks.ServiceAccount(
+        pod_service_account = eks.ServiceAccount(
             self, "ServiceAccount",
             cluster=self.eks_cluster,
             name="pod-identity-sa",
             namespace="kube-system",
             identity_type=eks.IdentityType.IRSA,
             annotations={
-                "eks.amazonaws.com/role-arn": self.pod_role.role_arn
+                "eks.amazonaws.com/role-arn": pod_role.role_arn
             }
         )
 
         # pod identity addon
-        self.pod_identity_agent_addon = eks.CfnAddon(
+        pod_identity_agent_addon = eks.CfnAddon(
             self,
             "eks-pod-identity-agent",
             addon_name = "eks-pod-identity-agent",
             cluster_name = clustername,
             addon_version = "v1.3.5-eksbuild.2",
             resolve_conflicts="OVERWRITE",
-            service_account_role_arn = self.pod_service_account.role.role_arn,
+            service_account_role_arn = pod_service_account.role.role_arn,
             configuration_values=json.dumps(
                 {
                   "agent": {
@@ -142,10 +131,10 @@ class KubernetesStack(Stack):
                 }
             )
         )
-        self.pod_identity_agent_addon.node.add_dependency(self.eks_cluster)
+        pod_identity_agent_addon.node.add_dependency(self.eks_cluster)
 
         # vpc_cni role
-        self.vpc_cni_role = _iam.Role(
+        vpc_cni_role = _iam.Role(
             self, "VpcCniRole",
             assumed_by=_iam.OpenIdConnectPrincipal(
                 self.eks_cluster.open_id_connect_provider,
@@ -160,7 +149,7 @@ class KubernetesStack(Stack):
             )
         )
         # Attach the required AWS managed policy for VPC CNI
-        self.vpc_cni_role.add_managed_policy(
+        vpc_cni_role.add_managed_policy(
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKS_CNI_Policy")
         )
         
@@ -169,7 +158,7 @@ class KubernetesStack(Stack):
             self,
             "vpc-cni-addon",
             addon_name = "vpc-cni",
-            service_account_role_arn=self.vpc_cni_role.role_arn,
+            service_account_role_arn=vpc_cni_role.role_arn,
             cluster_name = self.eks_cluster.cluster_name,
             addon_version = "v1.19.3-eksbuild.1",
             resolve_conflicts="OVERWRITE",
@@ -182,7 +171,7 @@ class KubernetesStack(Stack):
         vpc_cni_addon.node.add_dependency(self.eks_cluster)
        
         # ebscsi role
-        self.ebs_csi_addon_role = _iam.Role(
+        ebs_csi_addon_role = _iam.Role(
             self, "ebs-csi-addon-role",
             assumed_by=_iam.OpenIdConnectPrincipal(
                 self.eks_cluster.open_id_connect_provider,
@@ -197,7 +186,7 @@ class KubernetesStack(Stack):
             )                
         )      
         # Attach the required AWS managed policy for EBSCSI
-        self.ebs_csi_addon_role.add_managed_policy(
+        ebs_csi_addon_role.add_managed_policy(
             _iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEBSCSIDriverPolicy")
         )
         aws_ebs_csi_driver_addon = eks.CfnAddon(
@@ -207,7 +196,7 @@ class KubernetesStack(Stack):
             cluster_name = self.eks_cluster.cluster_name,
             addon_version = "v1.41.0-eksbuild.1",
             resolve_conflicts="OVERWRITE",
-            service_account_role_arn = self.ebs_csi_addon_role.role_arn
+            service_account_role_arn = ebs_csi_addon_role.role_arn
         )
 
 
@@ -225,7 +214,7 @@ class KubernetesStack(Stack):
             self,
             "kube-proxy-addon",
             addon_name = "kube-proxy",
-            cluster_name = clustername,
+            cluster_name = self.eks_cluster.cluster_name,
             addon_version = "v1.32.0-eksbuild.2",
             resolve_conflicts="OVERWRITE"
         )
@@ -248,10 +237,11 @@ class KubernetesStack(Stack):
                 }
         )
 
+        
         super_user = _iam.User.from_user_arn(
             self,
             "iam-user",
-            user_arn=f"arn:aws:iam::{Aws.ACCOUNT_ID}:user/Derrick"
+            user_arn=f"arn:aws:iam::{Aws.ACCOUNT_ID}:user/John" # add your su name
         )
 
         self.eks_cluster.aws_auth.add_user_mapping(

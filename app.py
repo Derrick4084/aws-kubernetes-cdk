@@ -13,7 +13,7 @@ vpc_stack = VpcStack(app, "VpcStack", env=cdk.Environment(
     description="This stack creates a VPC and flow logs for EKS cluster"
 )
 
-kubernetes_stack = KubernetesStack(app, "KubernetesStack", env=cdk.Environment(
+kubernetes_stack = KubernetesStack(app, "KubernetesStack", vpc=vpc_stack.vpc, env=cdk.Environment(
     account=cdk.Aws.ACCOUNT_ID,
     region=cdk.Aws.REGION,
     ),
