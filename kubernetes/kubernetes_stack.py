@@ -76,6 +76,8 @@ class KubernetesStack(Stack):
             kubectl_layer=KubectlV32Layer(self, "kubectl"),
             version = eks.KubernetesVersion.V1_32,
             cluster_name = clustername,
+            authentication_mode=eks.AuthenticationMode.API_AND_CONFIG_MAP,
+            endpoint_access=eks.EndpointAccess.PUBLIC_AND_PRIVATE,
             masters_role=master_role,
             role=cluster_role,
             vpc=imported_vpc,
