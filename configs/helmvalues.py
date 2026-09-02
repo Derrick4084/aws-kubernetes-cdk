@@ -159,9 +159,9 @@ class HelmValues:
                       "url": f"https://aps-workspaces.{region}.amazonaws.com/workspaces/{wrkspc_id}/api/v1/remote_write",
                       "sigv4": {
                           "region": f"{region}",
-                          "access_key": "use an access key",
-                          "secret_key": "use a secret key"
-                          #   "role_arn": f"{prom_ingestrole_arn}"
+                        #   "access_key": "use an access key",
+                        #   "secret_key": "use a secret key"
+                            "role_arn": f"{prom_ingestrole_arn}"
                       },
                       "queue_config": {
                          "max_samples_per_send": 1000,
