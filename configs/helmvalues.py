@@ -51,12 +51,12 @@ class HelmValues:
                 }
             }
     
-    def get_promxy_values(self, wrkspc_id):
+    def get_promxy_values(self, wrkspc_id, accountId):
         return {
                 "serviceAccount": {
                     "create": True,
                     "annotations": {
-                        "eks.amazonaws.com/role-arn": "arn:aws:iam::008543762315:role/amp-iamproxy-query-role"
+                        f"eks.amazonaws.com/role-arn": f"arn:aws:iam::{accountId}:role/amp-iamproxy-query-role"
                     },
                     "name": "amp-iamproxy-query-service-account"
                 },
@@ -137,7 +137,7 @@ class HelmValues:
             }        
 
   
-    def get_prom_values(self, prom_ingestrole_arn, region, wrkspc_id):
+    def get_prom_values(self, prom_ingestrole_arn, region, wrkspc_id, accountId):
         return {
                 "alertmanager": {
                 "persistentVolume": {
@@ -159,8 +159,8 @@ class HelmValues:
                       "url": f"https://aps-workspaces.{region}.amazonaws.com/workspaces/{wrkspc_id}/api/v1/remote_write",
                       "sigv4": {
                           "region": f"{region}",
-                          "access_key": "AKIAQD7J7O6FVDNJGXDL",
-                          "secret_key": "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"
+                          "access_key": "use an access key",
+                          "secret_key": "use a secret key"
                           #   "role_arn": f"{prom_ingestrole_arn}"
                       },
                       "queue_config": {
