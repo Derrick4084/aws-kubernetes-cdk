@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llm-model-store-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+
+  resources:
+    requests:
+      storage: 1200Gi
+
+  volumeName: fsx-lustre-model-pv
+  storageClassName: ""

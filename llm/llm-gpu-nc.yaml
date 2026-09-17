@@ -1,0 +1,15 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: llm-gpu-nodeclass
+spec:
+  role: {role_name}
+  amiSelectorTerms:
+    - alias: al2023@latest  # Or a specialized Deep Learning AMI/GPU-enabled alias
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {clustername}
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {clustername}
+  

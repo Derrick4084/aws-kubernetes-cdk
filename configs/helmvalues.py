@@ -3,6 +3,98 @@ class HelmValues:
     def __init__(self):
         pass
 
+    def get_spark_values(self):
+        return {
+        "controller": {
+            "serviceAccount": {
+                "create": True,
+                "name": "spark-operator-controller-sa",
+            },
+            "rbac": {
+                "create": True,
+            },
+        },
+        "webhook": {
+            "enable": True,
+            "serviceAccount": {
+                "create": True,
+                "name": "spark-operator-webhook-sa",
+            },
+            "rbac": {
+                "create": True,
+            },
+        },
+        "spark": {
+            "serviceAccount": {
+                "create": True,
+                "name": "spark",
+            },
+            "jobNamespaces": [
+                "spark-jobs",
+                "spark"
+            ],
+        },
+    }
+
+
+    def get_nvidia_values(self):
+        return {
+            "resources": {
+                "computeDomains": {
+                    "enabled": False
+                }
+            },
+            "gpuResourcesEnabledOverride": True,
+            "controller": {
+                "nodeSelector": {
+                    "workload-type": "llm-inference"
+                }
+            },
+            "kubeletPlugin": {
+                "nodeSelector": {
+                    "workload-type": "llm-inference"
+                },
+                "tolerations": [
+                    {
+                        "key": "nvidia.com/gpu",
+                        "operator": "Exists",
+                        "effect": "NoSchedule"
+                    }
+                ]
+            }
+    }
+
+
+    def get_karpenter_values(self, clustername, cluster_endpoint, role_arn, queue_name):
+        return {
+            "settings": {
+                "clusterName": f"{clustername}",
+                "clusterEndpoint": f"{cluster_endpoint}",
+                "interruptionQueue": f"{queue_name}",
+                "featureGates": {
+                    "nodeRepair": True
+                }
+            },
+            "serviceAccount": {
+                "annotations": {
+                    "eks.amazonaws.com/role-arn": f"{role_arn}"
+                }
+            },
+            "controller": {
+                "resources": {
+                    "requests": {
+                        "cpu": 1,
+                        "memory": "1Gi"
+                    },
+                    "limits": {
+                        "cpu": 1,
+                        "memory": "1Gi"
+                    }
+            } 
+        }
+    }
+
+
     def get_autoscaler_values(self, clustrename, region, accountId):
         return {
                 "autoDiscovery": {

@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-download
+  namespace: default
+  labels:
+    guide: ai-eks-docs
+spec:
+  backoffLimit: 10
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: model-storage-sa
+      containers:
+      - name: downloader
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          pip install -q huggingface_hub boto3
+          echo "Downloading Llama-3.1-8B-Instruct from Hugging Face..."
+          python3 -c "from huggingface_hub import snapshot_download; snapshot_download('meta-llama/Llama-3.1-8B-Instruct', local_dir='/tmp/llama', token=os.environ['HF_TOKEN'], allow_patterns=['*.json','*.txt','*.md','*.safetensors','*.model']"
+          echo "Uploading to S3 bucket: \${{MODEL_BUCKET}}"
+          python3 << 'PYTHON'
+          import boto3
+          import os
+          from pathlib import Path
+
+          s3 = boto3.client('s3')
+          bucket = os.environ.get('MODEL_BUCKET')
+          local_dir = Path("/tmp/llama")
+
+          for file_path in local_dir.rglob("*"):
+              if file_path.is_file():
+                  if '.cache' in file_path.parts:
+                      continue
+                  s3_key = f"models/Llama-3.1-8B-Instruct/{{file_path.relative_to(local_dir)}}"
+                  print(f"Uploading {{file_path.name}}...")
+                  s3.upload_file(str(file_path), bucket, s3_key)
+          print("Upload complete!")
+          PYTHON
+        env:
+        - name: MODEL_BUCKET
+          # value: "fsx-lustre-bucket"
+          value: {model_bucket}
+        - name: HF_HUB_DISABLE_XET
+          value: "1"
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: huggingface-secret
+              key: token
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"

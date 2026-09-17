@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-inference-app
+  labels:
+    guide: ai-eks-docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-inference-app
+  template:
+    metadata:
+      labels:
+        app: vllm-inference-app
+        guide: ai-eks-docs
+    spec:
+      serviceAccountName: model-storage-sa
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      nodeSelector:
+        karpenter.sh/nodepool: llm-gpu-nodepool
+      containers:
+      - name: vllm-inference
+        image: public.ecr.aws/deep-learning-containers/vllm:0.21.0-gpu-py312-cu130-ubuntu22.04-ec2-v1.0-soci
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+        
+        ports:
+        - containerPort: 8000
+        args:
+        - "--model=/model-cache/models/Llama-3.1-8B-Instruct"
+        - "--host=0.0.0.0"
+        - "--port=8000"
+        - "--tensor-parallel-size=1"
+        - "--gpu-memory-utilization=0.9"
+        - "--max-model-len=4096"
+        - "--enforce-eager"
+        - "--enable-auto-tool-choice"
+        - "--tool-call-parser=llama3_json"
+        volumeMounts:
+        - name: model-cache
+          mountPath: /model-cache
+        - name: dshm
+          mountPath: /dev/shm
+          
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            cpu: "8"
+            memory: "40Gi"
+          requests:
+            nvidia.com/gpu: 1
+            memory: "40Gi"
+            cpu: "8"
+        
+        volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: model-cache-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-inference-svc
+  namespace: default
+  labels:
+    app: vllm-inference-app
+spec:
+  selector:
+    app: vllm-inference-app
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP

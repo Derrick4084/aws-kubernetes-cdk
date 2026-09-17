@@ -65,7 +65,7 @@ class VpcStack(Stack):
         )
 
         # create a vpc
-        self.out_vpc = ec2.Vpc(self, "VPC",
+        self.vpc = ec2.Vpc(self, "VPC",
           ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
           availability_zones=[f"{Aws.REGION}a", f"{Aws.REGION}b"],
           create_internet_gateway=True,
@@ -86,14 +86,9 @@ class VpcStack(Stack):
           gateway_endpoints={
             "S3": ec2.GatewayVpcEndpointOptions(
                 service=ec2.GatewayVpcEndpointAwsService.S3
-            ),
-            "DynamoDB": ec2.GatewayVpcEndpointOptions(
-                service=ec2.GatewayVpcEndpointAwsService.DYNAMODB
             )
           }
         )
-        Tags.of(self.out_vpc.private_subnets[0]).add("kubernetes.io/role/internal-elb", "1")
-        Tags.of(self.out_vpc.private_subnets[1]).add("kubernetes.io/role/internal-elb", "1")
 
         # create vpc flow logs for cloudwatch
         ec2_vpc_to_cloudwatch_flowlog = ec2.FlowLog(self, "cloudwatch-FlowLog",
@@ -116,11 +111,15 @@ class VpcStack(Stack):
 
         eks_cluster_sg = ec2.SecurityGroup(
             self, "EKSClusterSG",
-            vpc=self.out_vpc,
+            vpc=self.vpc,
             allow_all_outbound=True,
             security_group_name="eks_cluster-sg"    
         )
-        eks_cluster_sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
+        eks_cluster_sg.add_ingress_rule(
+            ec2.Peer.ipv4(self.vpc.vpc_cidr_block), 
+            ec2.Port.all_traffic()
+        )
+        
         
         # Endpoints for private subnet with no NAT Gateway
         # vpc_interface_endpoints = {         
@@ -146,6 +145,3 @@ class VpcStack(Stack):
        
         CfnOutput(self, "EKS SEC GROUP", value=eks_cluster_sg.security_group_id, export_name="EKSSecurityGroupID")
         
-    @property
-    def vpc(self) -> ec2.Vpc:
-        return self.out_vpc

@@ -245,14 +245,20 @@ class RolePolicyStatements:
                     ),
                     _iam.PolicyStatement(
                         actions=["elasticloadbalancing:SetWebAcl",
-                                 "elasticloadbalancing:ModifyListener",
-                                 "elasticloadbalancing:AddListenerCertificates",
-                                 "elasticloadbalancing:RemoveListenerCertificates",
-                                 "elasticloadbalancing:ModifyRule"
-                                 ],
+                                "elasticloadbalancing:ModifyListener",
+                                "elasticloadbalancing:AddListenerCertificates",
+                                "elasticloadbalancing:RemoveListenerCertificates",
+                                "elasticloadbalancing:ModifyRule"
+                                ],
                         effect=_iam.Effect.ALLOW,
-                        resources=["*"]
+                        resources=[
+                            "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
+                            "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
+                            "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
+                            "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
+                        ]
                     ),
+
                 ]      
         return policy_stmnt
 
@@ -287,18 +293,35 @@ class RolePolicyStatements:
     
 
     @staticmethod
-    def grafana_managed_statement():
+    def grafana_managed_statement(workspace_arn: str, amp_workspace_arn: str):
         policy_stmnt = [
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AWSGrafanaAccountAdministrator"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AWSSSOMasterAccountAdministrator"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AWSOrganizationsFullAccess"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AWSSSODirectoryAdministrator"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AWSMarketplaceManageSubscriptions"),
-              ]               
+            _iam.PolicyStatement(
+                actions=[
+                    "grafana:DescribeWorkspace",
+                    "grafana:UpdateWorkspace",
+                    "grafana:ListWorkspaces",
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=[workspace_arn]
+            ),
+            _iam.PolicyStatement(
+                actions=[
+                    "aps:ListWorkspaces",
+                    "aps:DescribeWorkspace",
+                    "aps:QueryMetrics",
+                    "aps:GetLabels",
+                    "aps:GetSeries",
+                    "aps:GetMetricMetadata"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=[amp_workspace_arn]
+            ),
+        ]
         return policy_stmnt
+
     
     @staticmethod
-    def grafana_inline_statement(self, acc_id):
+    def grafana_inline_statement(acc_id):
         policy_stmnt = [
                     _iam.PolicyStatement(
                         actions=[
@@ -325,7 +348,6 @@ class RolePolicyStatements:
     @staticmethod
     def eks_cluster_statement():
         policy_stmnt = [
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSWorkerNodePolicy"),
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSClusterPolicy")
         ]               
         return policy_stmnt
@@ -337,7 +359,6 @@ class RolePolicyStatements:
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKS_CNI_Policy"),
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly"),
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("ElasticLoadBalancingFullAccess")
         ]               
         return policy_stmnt
 
@@ -345,9 +366,12 @@ class RolePolicyStatements:
     @staticmethod
     def eks_master_statement():
         policy_stmnt = [
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AdministratorAccess"),
-              ]               
+            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSClusterPolicy"),
+            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSServicePolicy"),
+            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSVPCResourceController"),
+        ]               
         return policy_stmnt
+
     
     @staticmethod
     def karp_node_statement():
@@ -360,111 +384,133 @@ class RolePolicyStatements:
         return policy_stmnt
 
     @staticmethod
-    def karp_controller_statement(self, clustername, clusterarn, rolearn, region):
-        policy_stmnt = [_iam.PolicyStatement(
-                    actions=["ssm:GetParameter",
-                             "iam:PassRole",
-                             "ec2:DescribeImages",
-                             "ec2:RunInstances",
-                             "ec2:DescribeSubnets",
-                             "ec2:DescribeSecurityGroups",
-                             "ec2:DescribeLaunchTemplates",
-                             "ec2:DescribeInstances",
-                             "ec2:DescribeInstanceTypes",
-                             "ec2:DescribeInstanceTypeOfferings",
-                             "ec2:DescribeAvailabilityZones",
-                             "ec2:DeleteLaunchTemplate",
-                             "ec2:CreateTags",
-                             "ec2:CreateLaunchTemplate",
-                             "ec2:CreateFleet",
-                             "ec2:DescribeSpotPriceHistory",
-                             "pricing:GetProducts"
-                            ],
+    def karp_controller_statement(clustername: str, clusterarn: str, rolearn: str, queuearn: str, region: str):
+        policy_stmnt = [
+            _iam.PolicyStatement(
+                    sid="KarpenterEC2Launch",
                     effect=_iam.Effect.ALLOW,
+                    actions=[
+                        "ec2:RunInstances",
+                        "ec2:CreateLaunchTemplate",
+                        "ec2:DeleteLaunchTemplate",
+                        "ec2:CreateFleet"
+                    ],
                     resources=["*"],
-                    sid="karpenter"
-                    ),                 
+                    
+                ),
             _iam.PolicyStatement(
-                        effect=_iam.Effect.ALLOW,
-                        actions=["ec2:TerminateInstances"],
-                        resources=["*"],
-                        sid="ConditionalEC2Termination",
-                        conditions={"StringLike": {"ec2:ResourceTag/karpenter.sh/nodepool": "*"}}
-                    ),
+                sid="KarpenterResourceDiscovery",
+                effect=_iam.Effect.ALLOW,
+                actions=[
+                        "ssm:GetParameter",
+                        "ec2:DescribeImages",             
+                        "ec2:DescribeSubnets",
+                        "ec2:DescribeSecurityGroups",
+                        "ec2:DescribeLaunchTemplates",
+                        "ec2:DescribeInstances",
+                        "ec2:DescribeInstanceTypes",
+                        "ec2:DescribeInstanceTypeOfferings",
+                        "ec2:DescribeCapacityReservations",
+                        "ec2:DescribeAvailabilityZones",                           
+                        "ec2:DescribeSpotPriceHistory",
+                        "pricing:GetProducts"
+                    ],
+                resources=["*"],       
+            ),                 
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["iam:PassRole"],
-                      resources=[f"{rolearn}-{clustername}"],
-                      sid="PassNodeIAMRole",
-                    ),
+                sid="ConditionalEC2Termination",
+                effect=_iam.Effect.ALLOW,
+                actions=["ec2:TerminateInstances"],
+                resources=["*"],
+                conditions={"StringLike": {"ec2:ResourceTag/karpenter.sh/nodepool": "*"}}
+            ),
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["eks:DescribeCluster"],
-                      resources=[f"{clusterarn}"],
-                      sid="EKSClusterEndpointLookup",
-                      ),
+                sid="AllowPassingInstanceRole",
+                effect=_iam.Effect.ALLOW,
+                actions=["iam:PassRole"],
+                resources=[rolearn],
+                conditions={
+                        "StringEquals": {
+                            "iam:PassedToService": "ec2.amazonaws.com"
+                        }
+                    },
+                    
+            ),            
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["eks:DescribeCluster"],
-                      resources=[f"{clusterarn}"],
-                      sid="EKSClusterEndpointLookup",
-                      ),
+                sid="EKSClusterEndpointLookup",
+                effect=_iam.Effect.ALLOW,
+                actions=["eks:DescribeCluster"],
+                resources=[clusterarn]
+            ),
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["iam:CreateInstanceProfile"],
-                      resources=["*"],
-                      sid="AllowScopedInstanceProfileCreationActions",
-                      conditions={
-                          "StringEquals": {
-                              "aws:RequestTag/kubernetes.io/cluster/{}".format(clustername): "owned",
-                              "aws:RequestTag/topology.kubernetes.io/region": f"{region}"
-                            },
-                          "StringLike": {
-                                "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                             },
-                          }
-                      ),
+                sid="AllowScopedInstanceProfileCreationActions",
+                effect=_iam.Effect.ALLOW,
+                actions=["iam:CreateInstanceProfile"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        f"aws:RequestTag/kubernetes.io/cluster/{clustername}": "owned",
+                        "aws:RequestTag/topology.kubernetes.io/region": region
+                    },
+                    "StringLike": {
+                        "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                        },
+                    }
+            ),
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["iam:TagInstanceProfile"],
-                      resources=["*"],
-                      sid="AllowScopedInstanceProfileTagActions",
-                      conditions={
-                          "StringEquals": {
-                              "aws:ResourceTag/kubernetes.io/cluster/{}".format(clustername): "owned",
-                              "aws:ResourceTag/topology.kubernetes.io/region": f"{region}",
-                              "aws:RequestTag/kubernetes.io/cluster/{}".format(clustername): "owned",
-                              "aws:RequestTag/topology.kubernetes.io/region": f"{region}"
-                            },
-                          "StringLike": {
-                                "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
-                                "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                             },
-                          }
-                      ),                   
+                sid="AllowScopedInstanceProfileTagActions",
+                effect=_iam.Effect.ALLOW,
+                actions=["iam:TagInstanceProfile"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
+                        "aws:ResourceTag/topology.kubernetes.io/region": region,
+                        f"aws:RequestTag/kubernetes.io/cluster/{clustername}": "owned",
+                        "aws:RequestTag/topology.kubernetes.io/region": region
+                    },
+                    "StringLike": {
+                        "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+                        "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                        },
+                    }
+            ),                   
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["iam:AddRoleToInstanceProfile",
-                               "iam:RemoveRoleFromInstanceProfile",
-                               "iam:DeleteInstanceProfile"],
-                      resources=["*"],
-                      sid="AllowScopedInstanceProfileActions",
-                      conditions={
-                          "StringEquals": {
-                              "aws:ResourceTag/kubernetes.io/cluster/{}".format(clustername): "owned",
-                              "aws:ResourceTag/topology.kubernetes.io/region": f"{region}"
-                            },
-                          "StringLike": {
-                              "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                             },
-                          }
-                      ),
+                sid="AllowScopedInstanceProfileActions",
+                effect=_iam.Effect.ALLOW,
+                actions=["iam:AddRoleToInstanceProfile",
+                        "iam:RemoveRoleFromInstanceProfile",
+                        "iam:DeleteInstanceProfile"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
+                        "aws:ResourceTag/topology.kubernetes.io/region": region
+                    },
+                    "StringLike": {
+                        "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                        },
+                    }
+            ),
             _iam.PolicyStatement(
-                      effect=_iam.Effect.ALLOW,
-                      actions=["iam:GetInstanceProfile"],
-                      resources=["*"],
-                      sid="AllowInstanceProfileReadActions"
-                )          
+                sid="AllowInstanceProfileReadActions",
+                effect=_iam.Effect.ALLOW,
+                actions=[
+                    "iam:GetInstanceProfile",
+                    "iam:ListInstanceProfiles"
+                ],
+                resources=["*"]
+            ),
+            _iam.PolicyStatement(
+                sid="KarpenterInterruptionQueue",
+                effect=_iam.Effect.ALLOW,
+                actions=["sqs:DeleteMessage",
+                         "sqs:ReceiveMessage",
+                         "sqs:GetQueueUrl",
+                         "sqs:GetQueueAttributes",
+                         ],
+                resources=[queuearn]
+            )          
               ]       
         return policy_stmnt
         

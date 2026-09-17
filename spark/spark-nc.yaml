@@ -1,0 +1,17 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: spark-Ec2NodeClass
+spec:
+  amiFamily: AL2023
+  role: {role_name}
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {clustername}
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {clustername}
+
+
+    
+      
