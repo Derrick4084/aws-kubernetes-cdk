@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedding-app
+  namespace: default
+  labels:
+    app: embedding-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embedding-app
+  template:
+    metadata:
+      labels:
+        app: embedding-app
+         
+    spec:
+      serviceAccountName: model-storage-sa
+      
+      nodeSelector:
+        karpenter.sh/nodepool: general-purpose
+      containers:
+      - name: embedding-server
+        image: ghcr.io/ggml-org/llama.cpp:server
+        imagePullPolicy: IfNotPresent
+        command: ["/app/llama-server"]    
+        
+        args:
+          - "-m"
+          - "/model-cache/embeddings/nomic-embed-text-v1.5.Q4_K_M.gguf"
+          - "--alias"
+          - "nomic-embed"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8080"
+          - "--embedding"
+          - "-n"
+          - "512"
+        ports:
+        - containerPort: 8080       
+        volumeMounts:
+        - name: model-cache
+          mountPath: /model-cache
+        - name: dshm
+          mountPath: /dev/shm   
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+          
+        
+        volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: llm-model-store-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedding-svc
+  namespace: default
+  labels:
+    app: embedding-app
+spec:
+  type: ClusterIP
+  selector:
+    app: embedding-app
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

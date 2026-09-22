@@ -2,8 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vllm-inference-app
+  namespace: default
   labels:
-    guide: ai-eks-docs
+    app: vllm-inference-app 
 spec:
   replicas: 1
   selector:
@@ -12,8 +13,7 @@ spec:
   template:
     metadata:
       labels:
-        app: vllm-inference-app
-        guide: ai-eks-docs
+        app: vllm-inference-app     
     spec:
       serviceAccountName: model-storage-sa
       tolerations:
@@ -59,7 +59,7 @@ spec:
         volumes:
         - name: model-cache
           persistentVolumeClaim:
-            claimName: model-cache-pvc
+            claimName: llm-model-store-pvc
         - name: dshm
           emptyDir:
             medium: Memory

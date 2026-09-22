@@ -6,6 +6,8 @@ from aws_cdk import (
     RemovalPolicy
 )
 from constructs import Construct
+
+from huggingface_hub import hf_hub_download
    
 class LustreStack(Stack):
 
@@ -45,27 +47,10 @@ class LustreStack(Stack):
                 
                 # Import/Export integration with S3
                 import_path=f"{self.data_bucket.s3_url_for_object()}/models",
-                export_path=f"{self.data_bucket.s3_url_for_object()}/export"
+                export_path=f"{self.data_bucket.s3_url_for_object()}/export/models"
             )
         )
 
-        # self.embedding_file_system = fsx.LustreFileSystem(
-        #     self, "EmbeddingFsxLustreFileSystem",
-        #     vpc=vpc,
-        #     vpc_subnet=vpc.private_subnets[0],
-        #     storage_capacity_gib=1200,
-        #     security_group=self.fsx_security_group,
-        #     # Configuration settings for Lustre
-        #     lustre_configuration=fsx.LustreConfiguration(
-        #         deployment_type=fsx.LustreDeploymentType.PERSISTENT_2,
-        #         per_unit_storage_throughput=125,
-        #         data_compression_type=fsx.LustreDataCompressionType.LZ4,
-                
-        #         # Import/Export integration with S3
-        #         import_path=f"{self.data_bucket.s3_url_for_object()}/embeddings",
-        #         export_path=f"{self.data_bucket.s3_url_for_object()}/export"
-        #     )
-        # )
 
 
 

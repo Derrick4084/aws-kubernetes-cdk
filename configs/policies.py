@@ -1,40 +1,14 @@
-from aws_cdk import aws_iam as _iam
+from aws_cdk import (
+    aws_iam as _iam,  
+    CfnJson,
+)
 
 
 class RolePolicyStatements:
     
     def __init__(self):
         pass
-
-    @staticmethod
-    def cas_policy_statetement():
-        policy_stmnt = [
-            _iam.PolicyStatement(
-                actions=[
-                    "autoscaling:DescribeAutoScalingGroups",
-                    "autoscaling:DescribeAutoScalingInstances",
-                    "autoscaling:DescribeLaunchConfigurations",
-                    "autoscaling:DescribeScalingActivities",
-                    "autoscaling:DescribeTags",
-                    "ec2:DescribeInstanceTypes",
-                    "ec2:DescribeLaunchTemplateVersions"],
-                effect=_iam.Effect.ALLOW,
-                resources=["*"]
-            ),
-            _iam.PolicyStatement(
-                actions=[
-                    "autoscaling:SetDesiredCapacity",
-                    "autoscaling:TerminateInstanceInAutoScalingGroup",
-                    "autoscaling:UpdateAutoScalingGroup",
-                    "ec2:DescribeImages",
-                    "ec2:GetInstanceTypesFromInstanceRequirements",
-                    "eks:DescribeNodegroup"],
-                effect=_iam.Effect.ALLOW,
-                resources=["*"]
-            )
-        ]
-        return policy_stmnt
-        
+    
     @staticmethod
     def alb_loadbalancer_statement():
         policy_stmnt = [
@@ -351,26 +325,6 @@ class RolePolicyStatements:
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSClusterPolicy")
         ]               
         return policy_stmnt
-    
-    @staticmethod
-    def eks_worker_statement():
-        policy_stmnt = [
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSWorkerNodePolicy"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKS_CNI_Policy"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore"),
-        ]               
-        return policy_stmnt
-
-
-    @staticmethod
-    def eks_master_statement():
-        policy_stmnt = [
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSClusterPolicy"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSServicePolicy"),
-            _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSVPCResourceController"),
-        ]               
-        return policy_stmnt
 
     
     @staticmethod
@@ -384,7 +338,7 @@ class RolePolicyStatements:
         return policy_stmnt
 
     @staticmethod
-    def karp_controller_statement(clustername: str, clusterarn: str, rolearn: str, queuearn: str, region: str):
+    def karp_controller_statement(scope, clustername: str, clusterarn: str, rolearn: str, queuearn: str, region: str):
         policy_stmnt = [
             _iam.PolicyStatement(
                     sid="KarpenterEC2Launch",
@@ -448,13 +402,15 @@ class RolePolicyStatements:
                 actions=["iam:CreateInstanceProfile"],
                 resources=["*"],
                 conditions={
-                    "StringEquals": {
+                    "StringEquals": CfnJson(scope, "KarpenterCreateInstanceProfileCondition",
+                    value={
                         f"aws:RequestTag/kubernetes.io/cluster/{clustername}": "owned",
                         "aws:RequestTag/topology.kubernetes.io/region": region
-                    },
-                    "StringLike": {
-                        "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                        },
+                    }
+                ),
+                "StringLike": {
+                    "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                },
                     }
             ),
             _iam.PolicyStatement(
@@ -463,17 +419,19 @@ class RolePolicyStatements:
                 actions=["iam:TagInstanceProfile"],
                 resources=["*"],
                 conditions={
-                    "StringEquals": {
-                        f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
-                        "aws:ResourceTag/topology.kubernetes.io/region": region,
-                        f"aws:RequestTag/kubernetes.io/cluster/{clustername}": "owned",
-                        "aws:RequestTag/topology.kubernetes.io/region": region
-                    },
+                    "StringEquals": CfnJson(scope, "KarpenterTagInstanceProfileCondition",
+                        value={
+                            f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
+                            "aws:ResourceTag/topology.kubernetes.io/region": region,
+                            f"aws:RequestTag/kubernetes.io/cluster/{clustername}": "owned",
+                            "aws:RequestTag/topology.kubernetes.io/region": region
+                        }
+                    ),
                     "StringLike": {
                         "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
                         "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                        },
-                    }
+                    },
+                }
             ),                   
             _iam.PolicyStatement(
                 sid="AllowScopedInstanceProfileActions",
@@ -483,14 +441,16 @@ class RolePolicyStatements:
                         "iam:DeleteInstanceProfile"],
                 resources=["*"],
                 conditions={
-                    "StringEquals": {
-                        f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
-                        "aws:ResourceTag/topology.kubernetes.io/region": region
-                    },
+                    "StringEquals": CfnJson(scope, "KarpenterInstanceProfileActionsCondition",
+                        value={
+                            f"aws:ResourceTag/kubernetes.io/cluster/{clustername}": "owned",
+                            "aws:ResourceTag/topology.kubernetes.io/region": region
+                        }
+                    ),
                     "StringLike": {
                         "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
-                        },
-                    }
+                    },
+                }
             ),
             _iam.PolicyStatement(
                 sid="AllowInstanceProfileReadActions",

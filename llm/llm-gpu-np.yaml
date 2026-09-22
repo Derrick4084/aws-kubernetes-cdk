@@ -3,15 +3,18 @@ kind: NodePool
 metadata:
   name: llm-gpu-nodepool
 spec:
-  nodeClassRef:
-    group: karpenter.k8s.aws
-    kind: EC2NodeClass
-    name: llm-gpu-nodeclass
   template:
     metadata:
       labels:
         workload-type: llm-inference
+    
     spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: llm-gpu-nodeclass
+  
+    
       requirements:
         - key: kubernetes.io/os
           operator: In
@@ -20,8 +23,8 @@ spec:
           operator: In
           values: ["amd64"]
         - key: karpenter.k8s.aws/instance-gpu-count
-          operator: Gt
-          values: ["0"]
+          operator: In
+          values: ["1"]
         - key: karpenter.k8s.aws/instance-family
           operator: In
           values: ["g4dn"]
@@ -34,7 +37,6 @@ spec:
           value: "true"
   limits:
     cpu: "1000"
-    nvidia.com/gpu: "10"
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    expireAfter: 720h
+    expireAfter: 1m

@@ -27,7 +27,7 @@ class HelmValues:
         "spark": {
             "serviceAccount": {
                 "create": True,
-                "name": "spark",
+                "name": "spark-sa",
             },
             "jobNamespaces": [
                 "spark-jobs",
@@ -65,7 +65,7 @@ class HelmValues:
     }
 
 
-    def get_karpenter_values(self, clustername, cluster_endpoint, role_arn, queue_name):
+    def get_karpenter_values(self, clustername, cluster_endpoint, queue_name):
         return {
             "settings": {
                 "clusterName": f"{clustername}",
@@ -76,9 +76,7 @@ class HelmValues:
                 }
             },
             "serviceAccount": {
-                "annotations": {
-                    "eks.amazonaws.com/role-arn": f"{role_arn}"
-                }
+                "name": "karpenter-sa"
             },
             "controller": {
                 "resources": {
