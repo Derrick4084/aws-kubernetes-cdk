@@ -104,7 +104,7 @@ class EksKarpenterStack(Stack):
             )
         )
         pod_identity_agent_addon.node.add_dependency(self.eks_cluster)
-   
+        
 
         vpc_cni_role = role_statements.vpc_cni_pod_id_role_stmt(self)
 
@@ -131,7 +131,7 @@ class EksKarpenterStack(Stack):
                         "POD_SECURITY_GROUP_ENFORCING_MODE":"standard"},
                         "enableNetworkPolicy": "true"})
         )
-        vpc_cni_addon.node.add_dependency(pod_identity_agent_addon)
+        vpc_cni_addon.add_resource_dependency(pod_identity_agent_addon)
        
         
         ebs_csi_addon_role = role_statements.ebs_csi_pod_id_role_stmt(self)
@@ -154,7 +154,7 @@ class EksKarpenterStack(Stack):
             resolve_conflicts="OVERWRITE",
             
         )
-        ebs_csi_addon.node.add_dependency(pod_identity_agent_addon)
+        ebs_csi_addon.add_resource_dependency(pod_identity_agent_addon)
 
 
         coredns_addon = eks.CfnAddon(

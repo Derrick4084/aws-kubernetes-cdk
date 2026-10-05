@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag
+  namespace: ecomm
+  labels:
+    app: rag
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rag
+  template:
+    metadata:
+      labels:
+        app: rag
+    spec:
+      imagePullSecrets:
+        - name: ghcr-image-pull
+      serviceAccountName: ecomm-sa
+      containers:
+        - name: rag
+          image: ghcr.io/derrick4084/spring-ai-rag:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: rag-http
+              containerPort: 8080
+              protocol: TCP
+
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "{java_tool_options}"
+
+            - name: EMBEDDING_HOST
+              value: "{embedding_host}"
+
+            - name: EMBEDDING_PORT
+              value: "{embedding_port}"
+
+            - name: MODEL_HOST
+              value: "{model_host}"
+
+            - name: MODEL_PORT
+              value: "{model_port}"
+
+            - name: MCP_HOST
+              value: "{mcp_host}"
+
+            - name: MCP_PORT
+              value: "{mcp_port}"
+
+            - name: POSTGRES_DB_SECRET_NAME
+              value: "{postgres_db_secret_name}"
+
+            - name: ZIPKIN_HOST
+              value: "{zipkin_host}"
+
+            - name: ZIPKIN_PORT
+              value: "{zipkin_port}"
+
+            - name: QDRANT_HOST
+              value: "{qdrant_host}"
+
+            - name: QDRANT_PORT
+              value: "{qdrant_port}"
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag
+  namespace: ecomm
+  labels:
+    app: rag
+spec:
+  type: ClusterIP
+  selector:
+    app: rag
+  ports:
+    - name: rag-http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag-ingress
+  namespace: ecomm
+  annotations:
+    # alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rag
+                port:
+                  number: 80

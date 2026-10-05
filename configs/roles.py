@@ -1,7 +1,7 @@
 from configs.policies import RolePolicyStatements
 from aws_cdk import (
     aws_iam as _iam,
-    aws_eks as eks,  
+    aws_eks as eks, 
     CfnJson,
     Aws
    
@@ -148,5 +148,53 @@ class RoleStatements:
                 ],
             )
         )
+
+        return role
+
+
+    @staticmethod
+    def ecomm_pod_id_role_stmt(self):
+
+        policy_statements = RolePolicyStatements()
+
+        role = _iam.Role(
+            self,
+            "EcommPodIdentityRole",
+            role_name="EcommPodIdentityRole",
+            assumed_by=_iam.ServicePrincipal(
+                "pods.eks.amazonaws.com"
+            ).with_session_tags(),
+        )
+        role.attach_inline_policy(
+            _iam.Policy(self, "EcommAppPolicy",
+                policy_name="EcommAppPolicy",
+                statements=policy_statements.ecomm_pod_statement()
+            )
+        )
+        
+
+        return role
+
+
+    @staticmethod
+    def alb_pod_id_role_stmt(self):
+
+        policy_statements = RolePolicyStatements()
+
+        role = _iam.Role(
+            self,
+            "AlbPodIdentityRole",
+            role_name="AlbPodIdentityRole",
+            assumed_by=_iam.ServicePrincipal(
+                "pods.eks.amazonaws.com"
+            ).with_session_tags(),
+        )
+        role.attach_inline_policy(
+            _iam.Policy(self, "AlbPolicy",
+                policy_name="AlbPolicy",
+                statements=policy_statements.alb_loadbalancer_statement()
+            )
+        )
+        
 
         return role

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp
+  namespace: ecomm
+  labels:
+    app: mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp
+  template:
+    metadata:
+      labels:
+        app: mcp
+    spec:
+      imagePullSecrets:
+        - name: ghcr-image-pull
+      serviceAccountName: ecomm-sa
+      containers:
+        - name: mcp
+          image: ghcr.io/derrick4084/spring-ai-mcp:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: mcp-http
+              containerPort: 8075
+              protocol: TCP
+
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "{java_tool_options}"
+
+            - name: WEATHER_API_SECRET_NAME
+              value: "{weather_api_secret_name}" # replace with your model endpoint
+
+            - name: ZIPKIN_HOST
+              value: "{zipkin_host}"
+
+            - name: ZIPKIN_PORT
+              value: "{zipkin_port}"
+
+            - name: QDRANT_HOST
+              value: "{qdrant_host}"
+
+            - name: QDRANT_PORT
+              value: "{qdrant_port}"
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp
+  namespace: ecomm
+  labels:
+    app: mcp
+spec:
+  selector:
+    app: mcp
+  clusterIP: None
+  ports:
+    - name: mcp-http
+      port: 8075
+      targetPort: 8075
+      protocol: TCP
+  

@@ -7,7 +7,6 @@ spec:
     metadata:
       labels:
         workload-type: embeddings
-
     spec:
       nodeClassRef:
         group: karpenter.k8s.aws

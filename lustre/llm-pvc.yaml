@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: llm-model-store-pvc
-  namespace: default
+  namespace: ecomm
 spec:
   accessModes:
     - ReadWriteMany

@@ -1,0 +1,93 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: qdrant-gp3
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-headless
+  labels:
+    apps: qdrant
+spec:
+  clusterIP: None
+  ports:
+  - port: 6333
+    targetPort: http
+    name: http
+  - port: 6334
+    targetPort: grpc
+    name: grpc
+  selector:
+    app: qdrant
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qdrant
+  labels: 
+    app: qdrant
+spec:
+  replicas: 1
+  serviceName: qdrant-headless
+  selector:
+    matchLabels:
+      app: qdrant  
+  template:
+    metadata:
+      labels:
+        app: qdrant
+    spec:
+      containers:
+      - name: qdrant
+        image: qdrant/qdrant:v1.19.1
+        ports:
+        - containerPort: 6333
+          name: http
+        - containerPort: 6334
+          name: grpc
+        env:
+        - name: QDRANT__STORAGE__PERFORMANCE__MAX__SEARCH__THREADS
+          value: "0"
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests: 
+            cpu: "1"
+            memory: 4Gi
+        volumeMounts:
+        - name: qdrant-storage
+          mountPath: /qdrant/storage
+volumeClaimTemplates:
+- metadata:
+    name: qdrant-storage
+  spec:
+    accessModes: ["readWriteOnce"]
+    storageClassName: "qdrant-gp3"
+    resources:
+      requests:
+        storage: 50Gi
+
+
+
+
+
+
+
+
+
+
+
+        

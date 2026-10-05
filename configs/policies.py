@@ -1,6 +1,7 @@
 from aws_cdk import (
     aws_iam as _iam,  
     CfnJson,
+    Aws
 )
 
 
@@ -9,234 +10,7 @@ class RolePolicyStatements:
     def __init__(self):
         pass
     
-    @staticmethod
-    def alb_loadbalancer_statement():
-        policy_stmnt = [
-                    _iam.PolicyStatement(
-                    actions=["iam:CreateServiceLinkedRole"],
-                    effect=_iam.Effect.ALLOW,
-                    resources=["*"],
-                    conditions={
-                        "StringEquals": {
-                            "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
-                            }
-                    },
-                    sid="CreateServiceLinkedRoleForElasticLoadBalancing"
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:DescribeAccountAttributes",
-                                 "ec2:DescribeAddresses",
-                                 "ec2:DescribeAvailabilityZones",
-                                 "ec2:DescribeInternetGateways",
-                                 "ec2:DescribeVpcs",
-                                 "ec2:DescribeVpcPeeringConnections",
-                                 "ec2:DescribeSubnets",
-                                 "ec2:DescribeSecurityGroups",
-                                 "ec2:DescribeInstances",
-                                 "ec2:DescribeNetworkInterfaces",
-                                 "ec2:DescribeTags",
-                                 "ec2:GetCore",
-                                 "ec2:DescribeLaunchTemplates",
-                                 "ec2:DescribeKeyPairs",
-                                 "elasticloadbalancing:DescribeLoadBalancers",
-                                 "elasticloadbalancing:DescribeLoadBalancerAttributes",
-                                 "elasticloadbalancing:DescribeListeners",
-                                 "elasticloadbalancing:DescribeListenerCertificates",
-                                 "elasticloadbalancing:DescribeSSLPolicies",
-                                 "elasticloadbalancing:DescribeRules",
-                                 "elasticloadbalancing:DescribeTargetGroups",
-                                 "elasticloadbalancing:DescribeTargetGroupAttributes",
-                                 "elasticloadbalancing:DescribeTargetHealth",
-                                 "elasticloadbalancing:DescribeTags"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["cognito-idp:DescribeUserPoolClient",
-                                 "acm:ListCertificates",
-                                 "acm:DescribeCertificate",
-                                 "iam:ListServerCertificates",
-                                 "iam:GetServerCertificate",
-                                 "waf-regional:GetWebACL",
-                                 "waf-regional:GetWebACLForResource",
-                                 "waf-regional:AssociateWebACL",
-                                 "waf-regional:DisassociateWebACL",
-                                 "wafv2:GetWebACL",
-                                 "wafv2:GetWebACLForResource",
-                                 "wafv2:AssociateWebACL",
-                                 "wafv2:DisassociateWebACL",
-                                 "shield:GetSubscriptionState",
-                                 "shield:DescribeProtection",
-                                 "shield:CreateProtection",
-                                 "shield:DeleteProtection"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:AuthorizeSecurityGroupIngress",
-                                 "ec2:RevokeSecurityGroupIngress"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:CreateSecurityGroup"],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:CreateTags"],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["arn:aws:ec2:*:*:security-group/*"],
-                        conditions={
-                            "StringEquals": {
-                                "ec2:CreateAction": "CreateSecurityGroup"
-                                },
-                            "Null": {
-                                "aws:RequestTag/elbv2.k8s.aws/cluster": "false"
-                           }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:CreateTags",
-                                 "ec2:DeleteTags"],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["arn:aws:ec2:*:*:security-group/*"],
-                        conditions={
-                            "Null": {
-                                "aws:RequestTag/elbv2.k8s.aws/cluster": "true",
-                                "aws:ResourceTag/elbv2.k8s.aws/cluster": "false"
-                                }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["ec2:AuthorizeSecurityGroupIngress",
-                                 "ec2:RevokeSecurityGroupIngress",
-                                 "ec2:DeleteSecurityGroup"
-                                 ],
-                        resources=["*"],
-                        effect=_iam.Effect.ALLOW,
-                        conditions={
-                            "Null": {
-                                "aws:ResourceTag/elbv2.k8s.aws/cluster": "false"
-                                }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:CreateLoadBalancer",
-                                 "elasticloadbalancing:CreateTargetGroup"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"],
-                        conditions={
-                            "Null": {
-                                "aws:RequestTag/elbv2.k8s.aws/cluster": "false"
-                                }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:CreateListener",
-                                 "elasticloadbalancing:DeleteListener",
-                                 "elasticloadbalancing:CreateRule",
-                                 "elasticloadbalancing:DeleteRule"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:AddTags",
-                                 "elasticloadbalancing:RemoveTags"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=[
-                            "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
-                            ],
-                        conditions={
-                            "Null": {
-                                "aws:RequestTag/elbv2.k8s.aws/cluster": "true",
-                                "aws:ResourceTag/elbv2.k8s.aws/cluster": "false"
-                                }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:AddTags",
-                                 "elasticloadbalancing:RemoveTags"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=[
-                            "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
-                            ],
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:ModifyLoadBalancerAttributes",
-                                 "elasticloadbalancing:SetIpAddressType",
-                                 "elasticloadbalancing:SetSecurityGroups",
-                                 "elasticloadbalancing:SetSubnets",
-                                 "elasticloadbalancing:DeleteLoadBalancer",
-                                 "elasticloadbalancing:ModifyTargetGroup",
-                                 "elasticloadbalancing:ModifyTargetGroupAttributes",
-                                 "elasticloadbalancing:DeleteTargetGroup"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["*"],
-                        conditions={
-                            "Null": {
-                                "aws:ResourceTag/elbv2.k8s.aws/cluster": "false"
-                                }
-                        }
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:AddTags"],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
-                                   "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
-                                   "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"],
-                        conditions={
-                            "StringEquals": {
-                                "elasticloadbalancing:CreateAction": [
-                                    "CreateTargetGroup",
-                                    "CreateLoadBalancer"
-                                    ]
-                               },
-                                "Null": {
-                                "aws:RequestTag/elbv2.k8s.aws/cluster": "false"
-                                }  
-                             }                                                    
-                        ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:RegisterTargets",
-                                 "elasticloadbalancing:DeregisterTargets"
-                                 ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=["arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"]
-                    ),
-                    _iam.PolicyStatement(
-                        actions=["elasticloadbalancing:SetWebAcl",
-                                "elasticloadbalancing:ModifyListener",
-                                "elasticloadbalancing:AddListenerCertificates",
-                                "elasticloadbalancing:RemoveListenerCertificates",
-                                "elasticloadbalancing:ModifyRule"
-                                ],
-                        effect=_iam.Effect.ALLOW,
-                        resources=[
-                            "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
-                            "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
-                        ]
-                    ),
-
-                ]      
-        return policy_stmnt
-
-
+   
     @staticmethod
     def amp_iamproxy_ingest_statement():
         policy_stmnt = [_iam.PolicyStatement(
@@ -336,6 +110,43 @@ class RolePolicyStatements:
                   _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
               ]               
         return policy_stmnt
+
+    @staticmethod
+    def ecomm_pod_statement():
+        policy_stmnt = [
+            _iam.PolicyStatement(
+                actions=[
+                    "rds-db:DescribeDBClusters",
+                    "rds-db:Connect",
+                    "rds-db:DescribeDBInstances"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=["*"]
+            ),
+            _iam.PolicyStatement(
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=[f"arn:aws:secretsmanager:{Aws.REGION}:{Aws.ACCOUNT_ID}:secret:*"]
+            ),
+            _iam.PolicyStatement(
+                actions=[
+                    "documentdb:Connect",
+                    "documentdb:DescribeDBClusters",
+                    "documentdb:Read",
+                    "documentdb:Write"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=["*"]
+            ),
+        ]
+        return policy_stmnt
+
+
+
+    
 
     @staticmethod
     def karp_controller_statement(scope, clustername: str, clusterarn: str, rolearn: str, queuearn: str, region: str):
@@ -473,4 +284,282 @@ class RolePolicyStatements:
             )          
               ]       
         return policy_stmnt
+
+
+
+    @staticmethod
+    def alb_loadbalancer_statement():
+
+        policy_stmnt = [
+            _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "iam:CreateServiceLinkedRole",
+            ],
+            resources=["*"],
+            conditions={
+                "StringEquals": {
+                    "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com",
+                }
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:DescribeAccountAttributes",
+                "ec2:DescribeAddresses",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeVpcPeeringConnections",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeInstances",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeTags",
+                "ec2:GetCoipPoolUsage",
+                "ec2:DescribeCoipPools",
+                "ec2:GetSecurityGroupsForVpc",
+                "ec2:DescribeIpamPools",
+                "ec2:DescribeRouteTables",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                "elasticloadbalancing:DescribeListeners",
+                "elasticloadbalancing:DescribeListenerCertificates",
+                "elasticloadbalancing:DescribeSSLPolicies",
+                "elasticloadbalancing:DescribeRules",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeTargetGroupAttributes",
+                "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:DescribeTags",
+                "elasticloadbalancing:DescribeTrustStores",
+                "elasticloadbalancing:DescribeListenerAttributes",
+                "elasticloadbalancing:DescribeCapacityReservation",
+            ],
+            resources=["*"],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "cognito-idp:DescribeUserPoolClient",
+                "acm:ListCertificates",
+                "acm:DescribeCertificate",
+                "iam:ListServerCertificates",
+                "iam:GetServerCertificate",
+                "waf-regional:GetWebACL",
+                "waf-regional:GetWebACLForResource",
+                "waf-regional:AssociateWebACL",
+                "waf-regional:DisassociateWebACL",
+                "wafv2:GetWebACL",
+                "wafv2:GetWebACLForResource",
+                "wafv2:AssociateWebACL",
+                "wafv2:DisassociateWebACL",
+                "shield:GetSubscriptionState",
+                "shield:DescribeProtection",
+                "shield:CreateProtection",
+                "shield:DeleteProtection",
+            ],
+            resources=["*"],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+            ],
+            resources=["*"],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:CreateSecurityGroup",
+            ],
+            resources=["*"],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:CreateTags",
+            ],
+            resources=[
+                "arn:aws:ec2:*:*:security-group/*",
+            ],
+            conditions={
+                "StringEquals": {
+                    "ec2:CreateAction": "CreateSecurityGroup",
+                },
+                "Null": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:CreateTags",
+                "ec2:DeleteTags",
+            ],
+            resources=[
+                "arn:aws:ec2:*:*:security-group/*",
+            ],
+            conditions={
+                "Null": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "true",
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:DeleteSecurityGroup",
+            ],
+            resources=["*"],
+            conditions={
+                "Null": {
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:CreateLoadBalancer",
+                "elasticloadbalancing:CreateTargetGroup",
+            ],
+            resources=["*"],
+            conditions={
+                "Null": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:CreateListener",
+                "elasticloadbalancing:DeleteListener",
+                "elasticloadbalancing:CreateRule",
+                "elasticloadbalancing:DeleteRule",
+            ],
+            resources=["*"],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:AddTags",
+                "elasticloadbalancing:RemoveTags",
+            ],
+            resources=[
+                "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+                "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+                "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+            ],
+            conditions={
+                "Null": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "true",
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:AddTags",
+                "elasticloadbalancing:RemoveTags",
+            ],
+            resources=[
+                "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
+                "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
+                "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
+                "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*",
+            ],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                "elasticloadbalancing:SetIpAddressType",
+                "elasticloadbalancing:SetSecurityGroups",
+                "elasticloadbalancing:SetSubnets",
+                "elasticloadbalancing:DeleteLoadBalancer",
+                "elasticloadbalancing:ModifyTargetGroup",
+                "elasticloadbalancing:ModifyTargetGroupAttributes",
+                "elasticloadbalancing:DeleteTargetGroup",
+                "elasticloadbalancing:ModifyListenerAttributes",
+                "elasticloadbalancing:ModifyCapacityReservation",
+                "elasticloadbalancing:ModifyIpPools",
+            ],
+            resources=["*"],
+            conditions={
+                "Null": {
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:AddTags",
+            ],
+            resources=[
+                "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+                "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+                "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+            ],
+            conditions={
+                "StringEquals": {
+                    "elasticloadbalancing:CreateAction": [
+                        "CreateTargetGroup",
+                        "CreateLoadBalancer",
+                    ],
+                },
+                "Null": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "false",
+                },
+            },
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+            ],
+            resources=[
+                "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+            ],
+        ),
+
+        _iam.PolicyStatement(
+            effect=_iam.Effect.ALLOW,
+            actions=[
+                "elasticloadbalancing:SetWebAcl",
+                "elasticloadbalancing:ModifyListener",
+                "elasticloadbalancing:AddListenerCertificates",
+                "elasticloadbalancing:RemoveListenerCertificates",
+                "elasticloadbalancing:ModifyRule",
+                "elasticloadbalancing:SetRulePriorities",
+            ],
+            resources=["*"],
+        ),
+    ]
+
+        return policy_stmnt
+
         

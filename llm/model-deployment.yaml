@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vllm-inference-app
-  namespace: default
+  namespace: ecomm
   labels:
     app: vllm-inference-app 
 spec:
@@ -16,24 +16,23 @@ spec:
         app: vllm-inference-app     
     spec:
       serviceAccountName: model-storage-sa
+      nodeSelector:
+        karpenter.sh/nodepool: llm-gpu-nodepool
       tolerations:
       - key: nvidia.com/gpu
         operator: Exists
         effect: NoSchedule
-      nodeSelector:
-        karpenter.sh/nodepool: llm-gpu-nodepool
       containers:
       - name: vllm-inference
         image: public.ecr.aws/deep-learning-containers/vllm:0.21.0-gpu-py312-cu130-ubuntu22.04-ec2-v1.0-soci
         imagePullPolicy: IfNotPresent
-        command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
-        
+        command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]     
         ports:
-        - containerPort: 8000
+        - containerPort: 8081
         args:
         - "--model=/model-cache/models/Llama-3.1-8B-Instruct"
         - "--host=0.0.0.0"
-        - "--port=8000"
+        - "--port=8081"
         - "--tensor-parallel-size=1"
         - "--gpu-memory-utilization=0.9"
         - "--max-model-len=4096"
@@ -69,15 +68,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vllm-inference-svc
-  namespace: default
+  name: vllm-model
+  namespace: ecomm
   labels:
     app: vllm-inference-app
 spec:
+  type: ClusterIP
   selector:
     app: vllm-inference-app
   ports:
   - name: http
-    port: 8000
-    targetPort: 8000
+    port: 8081
+    targetPort: 8081
     protocol: TCP

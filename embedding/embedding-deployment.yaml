@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: embedding-app
-  namespace: default
+  namespace: ecomm
   labels:
     app: embedding-app
 spec:
@@ -13,19 +13,16 @@ spec:
   template:
     metadata:
       labels:
-        app: embedding-app
-         
+        app: embedding-app       
     spec:
-      serviceAccountName: model-storage-sa
-      
+      serviceAccountName: model-storage-sa     
       nodeSelector:
-        karpenter.sh/nodepool: general-purpose
+        karpenter.sh/nodepool: embeddings-nodepool
       containers:
       - name: embedding-server
         image: ghcr.io/ggml-org/llama.cpp:server
         imagePullPolicy: IfNotPresent
-        command: ["/app/llama-server"]    
-        
+        command: ["/app/llama-server"]     
         args:
           - "-m"
           - "/model-cache/embeddings/nomic-embed-text-v1.5.Q4_K_M.gguf"
@@ -34,12 +31,12 @@ spec:
           - "--host"
           - "0.0.0.0"
           - "--port"
-          - "8080"
+          - "8082"
           - "--embedding"
           - "-n"
           - "512"
         ports:
-        - containerPort: 8080       
+        - containerPort: 8082       
         volumeMounts:
         - name: model-cache
           mountPath: /model-cache
@@ -51,9 +48,7 @@ spec:
             memory: "4Gi"
           limits:
             cpu: "4"
-            memory: "8Gi"
-          
-        
+            memory: "8Gi"        
         volumes:
         - name: model-cache
           persistentVolumeClaim:
@@ -67,8 +62,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: embedding-svc
-  namespace: default
+  name: nomic-embed
+  namespace: ecomm
   labels:
     app: embedding-app
 spec:
@@ -77,6 +72,6 @@ spec:
     app: embedding-app
   ports:
   - name: http
-    port: 8080
-    targetPort: 8080
+    port: 8082
+    targetPort: 8082
     protocol: TCP

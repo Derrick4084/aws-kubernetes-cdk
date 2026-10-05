@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: model-download
-  namespace: default
+  namespace: ecomm
   labels:
     guide: ai-eks-docs
 spec:
@@ -25,19 +25,26 @@ spec:
 
           python3 << 'PYTHON'
           import os
+          import json
           import boto3
           from pathlib import Path
           from huggingface_hub import snapshot_download
 
           bucket = os.environ["MODEL_BUCKET"]
+
+          sm = boto3.client("secretsmanager")
+          secret = sm.get_secret_value(SecretId="open-weather-api")
+          hf_token = json.loads(secret["SecretString"])["apikey"]
+
           local_dir = Path("/tmp/llama")
+          local_dir.mkdir(parents=True, exist_ok=True)
 
           print("Downloading Llama-3.1-8B-Instruct from Hugging Face...")
 
           snapshot_download(
               repo_id="meta-llama/Llama-3.1-8B-Instruct",
               local_dir=str(local_dir),
-              token=os.environ["HF_TOKEN"],
+              token=hf_token,
               allow_patterns=[
                   "*.json",
                   "*.txt",
@@ -55,10 +62,10 @@ spec:
               if file_path.is_file() and ".cache" not in file_path.parts:
                   s3_key = (
                       f"models/Llama-3.1-8B-Instruct/"
-                      f"{file_path.relative_to(local_dir)}"
+                      f"{{file_path.relative_to(local_dir)}}"
                   )
 
-                  print(f"Uploading {file_path.name}...")
+                  print(f"Uploading {{file_path.name}}...")
                   s3.upload_file(str(file_path), bucket, s3_key)
 
           print("Llama model upload complete!")
@@ -66,14 +73,9 @@ spec:
 
         env:
         - name: MODEL_BUCKET
-          value: {model_bucket}
+          value: "{model_bucket}"
         - name: HF_HUB_DISABLE_XET
           value: "1"
-        - name: HF_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: huggingface-secret
-              key: token
         resources:
           requests:
             memory: "2Gi"

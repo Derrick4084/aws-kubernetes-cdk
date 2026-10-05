@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecomm
+  namespace: ecomm
+  labels:
+    app: ecomm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ecomm
+  template:
+    metadata:
+      labels:
+        app: ecomm
+    spec:
+      imagePullSecrets:
+        - name: ghcr-image-pull
+      serviceAccountName: ecomm-sa
+      containers:
+        - name: ecomm
+          image: ghcr.io/derrick4084/services-modulith:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: ecomm-http
+              containerPort: 8079
+              protocol: TCP
+
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "{java_tool_options}"
+
+            - name: POSTGRES_DB_SECRET_NAME
+              value: "{postgres_db_secret_name}"
+
+            - name: DOCUMENTDB_SECRET_NAME
+              value: "{documentdb_secret_name}"
+
+            - name: ZIPKIN_HOST
+              value: "{zipkin_host}"
+
+            - name: ZIPKIN_PORT
+              value: "{zipkin_port}"
+
+            - name: REDIS_HOST
+              value: "{redis_host}"
+
+            - name: REDIS_PORT
+              value: "{redis_port}"
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecomm
+  namespace: ecomm
+  labels:
+    app: ecomm
+spec:
+  clusterIp: None
+  selector:
+    app: ecomm
+  ports:
+    - name: ecomm-http
+      port: 80
+      targetPort: 8079
+      protocol: TCP
+
+
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: ecomm-ingress
+#   namespace: ecomm
+#   annotations:
+#     alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+#     alb.ingress.kubernetes.io/scheme: internet-facing
+#     alb.ingress.kubernetes.io/target-type: instance
+# spec:
+#   ingressClassName: alb
+#   rules:
+#     - host: ecomm.derocode.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: ecomm
+#                 port:
+#                   number: 80
+  

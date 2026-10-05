@@ -3,6 +3,19 @@ class HelmValues:
     def __init__(self):
         pass
 
+    def get_alb_values(self, clusername: str, service_acct_name: str):
+        return {
+            "clusterName": clusername,   
+            "serviceAccount": {
+                "create": False,
+                "name": service_acct_name,
+            },
+            
+            
+        }
+
+    
+
     def get_spark_values(self):
         return {
         "controller": {
