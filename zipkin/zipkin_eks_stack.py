@@ -1,9 +1,7 @@
 import yaml
 from aws_cdk import (
     Stack,
-    aws_ec2 as ec2,
-    aws_eks as eks,
-    CfnOutput
+    aws_eks as eks
 )
 from constructs import Construct
 

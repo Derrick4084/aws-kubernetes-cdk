@@ -40,18 +40,7 @@ class EcommEksStack(Stack):
         )
 
         
-
-        
-        
-
-        
-
-
-
-
-
-
-       
+           
         external_secrets_role = _iam.Role(
             self, "ExternalSecretsPodIdentityRole",
             role_name="ExternalSecretsPodIdentityRole",
@@ -120,29 +109,15 @@ class EcommEksStack(Stack):
         cluster_secret_store.node.add_dependency(external_secrets_chart)
 
 
+         
         image_pull = cluster.add_manifest("GhcrImagePull", 
             yaml.safe_load(open("ecomm/image-pull.yaml").read()))
-        
         image_pull.node.add_dependency(ecomm_ns)
         image_pull.node.add_dependency(cluster_secret_store)
 
 
 
 
-        
-        
-
-
-
-
-        
-        
-        
-        
-        
-        
-        
-        
         ecomm_role_statements = RoleStatements()
 
         ecomm_pod_role = ecomm_role_statements.ecomm_pod_id_role_stmt(self)

@@ -1,12 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  namespace: ecomm-tools
+  labels:
+    app: mongo-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      serviceAccountName: mongo-express-sa
+      initContainers:
+        - name: download-documentdb-ca
+          image: public.ecr.aws/aws-cli/aws-cli:2
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              aws s3 cp \
+                s3://{cert_bucket}/certs/ca-bundle.pem \
+                /certs/ca-bundle.pem
+              chmod 0444 /certs/ca-bundle.pem
+          volumeMounts:
+            - name: documentdb-ca
+              mountPath: /certs
+      containers:
+        - name: mongo-express
+          image: mongo-express:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8083
+          env:
+            - name: ME_CONFIG_MONGODB_URL
+              value: "{mongo_uri}"
+
+            - name: ME_CONFIG_MONGODB_SSL
+              value: "true"
+
+            - name: ME_CONFIG_MONGODB_CA_FILE
+              value: "/certs/ca-bundle.pem"
+
+            - name: ME_CONFIG_MONGODB_AUTH_DATABASE
+              value: "admin"
+
+            - name: ME_CONFIG_MONGODB_AUTH_SOURCE
+              value: "admin"
+
+            - name: ME_CONFIG_BASICAUTH_USERNAME
+              value: "admin"
+
+            - name: ME_CONFIG_BASICAUTH_PASSWORD
+              value: "password123"
+              # valueFrom:
+              #   secretKeyRef:
+              #     name: mongo-express-auth
+              #     key: password
+
+            - name: ME_CONFIG_HEALTH_CHECK_PATH
+              value: "/status"
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+
+          volumeMounts:
+            - name: documentdb-ca
+              mountPath: /certs
+              readOnly: true
+
+            - name: mongo-express-data
+              mountPath: /mongo-express/data
+
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+      volumes:
+        - name: documentdb-ca
+          emptyDir: {}
+
+        - name: mongo-express-data
+          emptyDir: {}
+
+---
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo-express
-  namespace: tools
+  name: mongo-express-svc
+  namespace: ecomm-tools
   labels:
     apps: mongo-express
 spec:
-  clusterIP: None 
+  type: ClusterIP 
   ports:
   - port: 8083
     targetPort: http
@@ -16,99 +124,26 @@ spec:
 
 ---
 
-apiVersion: apps/v1
-kind: StatefulSet
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: mongo-express
-  namespace: tools
-  labels: 
-    app: mongo-express
+  name: mongo-express-ingress
+  namespace: ecomm-tools
+  annotations:
+    alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
 spec:
-  replicas: 1
-  serviceName: mongo-express
-  selector:
-    matchLabels:
-      app: mongo-express 
-  template:
-    metadata:
-      labels:
-        app: mongo-express
-    spec:
-      serviceAccountName: mongo-express-sa
-      initContainers:
-      - name: download-documentdb-ca
-        image: public.ecr.aws/aws-cli/aws-cli:2
-        command:
-          - /bin/sh
-          - -c
-          - |
-            aws s3 cp s3://{cert_bucket}/certs/ca-bundle.pem
-            chmod 0444 /certs/ca-bundle.pem
-        volumeMounts:
-          - name: documentdb-ca
-            mountPath: /certs
-      containers:
-      - name: mongo-express
-        image: mongo-express:latest
-        ports:
-        - containerPort: 8083
-          name: mongo-express-http
-        env:
-        - name: ME_CONFIG_MONGODB_URL
-          value: "{mongo_uri}"
+  ingressClassName: alb
 
-        - name: ME_CONFIG_MONGODB_SSL
-          value: "true"
-
-        - name: ME_CONFIG_BASICAUTH_USERNAME
-          value: "admin" 
-
-        - name: ME_CONFIG_BASICAUTH_PASSWORD
-          value: "password123"
-
-        - name: ME_CONFIG_MONGODB_AUTH_DATABASE
-          value: "admin"
-
-        - name: ME_CONFIG_MONGODB_AUTH_SOURCE
-          value: "admin"
-
-        - name: ME_CONFIG_MONGODB_CA_FILE
-          value: "/certs/ca-bundle.pem"
-
-        - name: ME_CONFIG_HEALTH_CHECK_PATH
-          value: "/status"
-        
-        resources:
-          limits:
-            cpu: "2"
-            memory: 4Gi
-          requests: 
-            cpu: "1"
-            memory: 4Gi
-        volumeMounts:
-        - name: documentdb-ca
-          mountPath: /certs
-          readOnly: true
-        - name: mongo-express-storage
-          mountPath: /mongo-express/data
-volumeClaimTemplates:
-- metadata:
-    name: mongo-express-storage
-  spec:
-    accessModes: ["readWriteOnce"]
-    storageClassName: "tools-gp3"
-    resources:
-      requests:
-        storage: 50Gi
-
-
-
-
-
-
-
-
-
-
-
-        
+  rules:   
+     - http:
+        paths:
+          - path: /mongo-express
+            pathType: Prefix
+            backend:
+              service:
+                name: mongo-express-svc
+                port:
+                  number: 8083

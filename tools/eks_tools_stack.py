@@ -45,7 +45,7 @@ class EksToolsStack(Stack):
             "MongoExpressServiceAccount",
             cluster=cluster,
             name="mongo-express-sa",
-            namespace="tools",
+            namespace="ecomm-tools",
         )
 
         eks.CfnPodIdentityAssociation(
@@ -56,14 +56,6 @@ class EksToolsStack(Stack):
             service_account="mongo-express-sa",
             role_arn=mongo_express_pod_id_role.role_arn,
         )
-
-
-        cluster.add_manifest("ToolsStorageClass", 
-                yaml.safe_load(
-                    open("tools/tools-storage-class.yaml").read()
-                )
-        )
-        
 
         mongo_secret = secretsmanager.Secret.from_secret_name_v2(
                     scope=self,

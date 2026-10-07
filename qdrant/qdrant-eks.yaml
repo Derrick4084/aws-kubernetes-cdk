@@ -12,35 +12,16 @@ parameters:
 
 ---
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: qdrant-headless
-  labels:
-    apps: qdrant
-spec:
-  clusterIP: None
-  ports:
-  - port: 6333
-    targetPort: http
-    name: http
-  - port: 6334
-    targetPort: grpc
-    name: grpc
-  selector:
-    app: qdrant
-
----
-
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: qdrant
+  namespace: ecomm
   labels: 
     app: qdrant
 spec:
   replicas: 1
-  serviceName: qdrant-headless
+  serviceName: qdrant
   selector:
     matchLabels:
       app: qdrant  
@@ -70,15 +51,60 @@ spec:
         volumeMounts:
         - name: qdrant-storage
           mountPath: /qdrant/storage
-volumeClaimTemplates:
-- metadata:
-    name: qdrant-storage
-  spec:
-    accessModes: ["readWriteOnce"]
-    storageClassName: "qdrant-gp3"
-    resources:
-      requests:
-        storage: 50Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: qdrant-storage
+      spec:
+        accessModes: ["readWriteOnce"]
+        storageClassName: "qdrant-gp3"
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-svc
+  namespace: ecomm
+  labels:
+    apps: qdrant
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6333
+    targetPort: http
+    name: http
+  - port: 6334
+    targetPort: grpc
+    name: grpc
+  selector:
+    app: qdrant
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qdrant-ingress
+  namespace: ecomm
+  annotations:
+    alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /qdrant
+            pathType: Prefix
+            backend:
+              service:
+                name: qdrant-svc
+                port:
+                  number: 6333
 
 
 

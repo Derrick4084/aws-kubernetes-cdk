@@ -17,7 +17,9 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-image-pull
+
       serviceAccountName: ecomm-sa
+
       containers:
         - name: rag
           image: ghcr.io/derrick4084/spring-ai-rag:latest
@@ -34,19 +36,16 @@ spec:
 
             - name: EMBEDDING_HOST
               value: "{embedding_host}"
-
             - name: EMBEDDING_PORT
               value: "{embedding_port}"
 
             - name: MODEL_HOST
               value: "{model_host}"
-
             - name: MODEL_PORT
               value: "{model_port}"
 
             - name: MCP_HOST
               value: "{mcp_host}"
-
             - name: MCP_PORT
               value: "{mcp_port}"
 
@@ -55,13 +54,11 @@ spec:
 
             - name: ZIPKIN_HOST
               value: "{zipkin_host}"
-
             - name: ZIPKIN_PORT
               value: "{zipkin_port}"
 
             - name: QDRANT_HOST
               value: "{qdrant_host}"
-
             - name: QDRANT_PORT
               value: "{qdrant_port}"
 
@@ -77,7 +74,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rag
+  name: rag-svc
   namespace: ecomm
   labels:
     app: rag
@@ -87,30 +84,39 @@ spec:
     app: rag
   ports:
     - name: rag-http
-      port: 80
+      port: 8080
       targetPort: 8080
       protocol: TCP
 
 ---
-
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rag-ingress
   namespace: ecomm
   annotations:
-    # alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+    # Join the shared ALB
+    alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+
+    # ALB configuration
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+
+
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+
 spec:
   ingressClassName: alb
+
   rules:
     - http:
         paths:
-          - path: /
+          - path: /rag
             pathType: Prefix
             backend:
               service:
-                name: rag
+                name: rag-svc
                 port:
-                  number: 80
+                  number: 8080
