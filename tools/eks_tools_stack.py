@@ -77,13 +77,13 @@ class EksToolsStack(Stack):
             f"&retryWrites=false"
         )
 
+        
         with open("tools/mongo-express.yaml", "r") as f:
             mongo_express_manifests = [
                 mongo_express_manifest
                 for mongo_express_manifest in yaml.safe_load_all(
                     f.read().format(
-                        mongo_uri=documentdb_uri,
-                        cert_bucket="all-purpose-utility",
+                        mongo_uri=documentdb_uri
                     )
                 )
                 if mongo_express_manifest is not None

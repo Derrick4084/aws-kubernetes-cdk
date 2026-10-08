@@ -1,15 +1,12 @@
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_s3 as s3,
-    aws_eks as eks,
-    aws_iam as _iam,
     Stack,
     aws_fsx as fsx,    
     RemovalPolicy
 )
 from constructs import Construct
 
-from huggingface_hub import hf_hub_download
    
 class LustreStack(Stack):
 
@@ -63,8 +60,9 @@ class LustreStack(Stack):
             "fsx-id": self.model_file_system.file_system_id, 
             "fsx-dns-name": self.model_file_system.dns_name,
             "fsx-mount-name": self.model_file_system.mount_name,
+            "fsx-bucket-arn": self.data_bucket.bucket_arn,
             "fsx-bucket-name": self.data_bucket.bucket_name
-    }
+        }
 
 
 

@@ -57,7 +57,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mail
+  name: mail-svc
   namespace: ecomm
   labels:
     app: mail
@@ -74,3 +74,28 @@ spec:
       port: 1025
       targetPort: 1025
       protocol: TCP
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mail-ingress
+  namespace: ecomm
+  annotations:
+    alb.ingress.kubernetes.io/group.name: ecomm-ingress-group
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+
+  rules:
+    - http:
+        paths:
+          - path: /mail
+            pathType: Prefix
+            backend:
+              service:
+                name: mail-svc
+                port:
+                  number: 1080

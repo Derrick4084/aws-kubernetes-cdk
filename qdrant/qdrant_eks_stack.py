@@ -31,6 +31,6 @@ class QdrantEksStack(Stack):
     @property
     def qdrant_info(self) -> dict:
         return {
-            "host": "qdrant.ecomm.svc.cluster.local",
+            "host": "qdrant-svc.ecomm.svc.cluster.local",
             "port": "6334",
         }

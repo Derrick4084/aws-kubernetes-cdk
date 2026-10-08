@@ -25,6 +25,6 @@ class ZipkinEksStack(Stack):
     @property
     def zipkin_info(self) -> dict:
         return {
-            "host": "zipkin.ecomm.svc.cluster.local",
+            "host": "zipkin-svc.ecomm.svc.cluster.local",
             "port": "9411"
     }

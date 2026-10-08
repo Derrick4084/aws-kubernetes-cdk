@@ -26,19 +26,7 @@ class SparkStack(Stack):
             removal_policy=RemovalPolicy.DESTROY
         )
 
-
-        spark_pod_role = role_statements.spark_pod_id_role_stmt(self, spark_bucket.bucket_arn)
-
-        eks.CfnPodIdentityAssociation(
-            self,
-            "SparkPodIdentityAssociation",
-            cluster_name=cluster.cluster_name,
-            namespace="spark",
-            service_account="spark-sa",
-            role_arn=spark_pod_role.role_arn,
-        )
-
-        
+ 
         with open("spark/namespaces.yaml", "r") as f:
             manifests = [
                 manifest
@@ -46,10 +34,24 @@ class SparkStack(Stack):
                 if manifest is not None
             ]
 
-        cluster.add_manifest(
+
+        spark_namespaces = cluster.add_manifest(
             "SparkManifests",
             *manifests
         )
+
+
+        spark_pod_role = role_statements.spark_pod_id_role_stmt(self, spark_bucket.bucket_arn)
+        
+        spark_pod_association = eks.CfnPodIdentityAssociation(
+            self,
+            "SparkPodIdentityAssociation",
+            cluster_name=cluster.cluster_name,
+            namespace="spark",
+            service_account="spark-sa",
+            role_arn=spark_pod_role.role_arn,
+        )
+        spark_pod_association.node.add_dependency(spark_namespaces)
 
         
         cluster.add_helm_chart(

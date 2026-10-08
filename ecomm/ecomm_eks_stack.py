@@ -26,9 +26,6 @@ class EcommEksStack(Stack):
 
 
 
-
-
-
         external_secrets_ns = cluster.add_manifest(
             "ExternalSecretsNamespace",
             yaml.safe_load(open("ecomm/external-secrets-ns.yaml").read())
@@ -115,9 +112,7 @@ class EcommEksStack(Stack):
         image_pull.node.add_dependency(ecomm_ns)
         image_pull.node.add_dependency(cluster_secret_store)
 
-
-
-
+        
         ecomm_role_statements = RoleStatements()
 
         ecomm_pod_role = ecomm_role_statements.ecomm_pod_id_role_stmt(self)

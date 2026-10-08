@@ -23,25 +23,25 @@ from loadbalancer.eks_alb_stack import EksAlbStack
 app = cdk.App()
 
 model_info = {
-    "host": "vllm-model.ecomm.svc.cluster.local",
+    "host": "vllm-svc.ecomm.svc.cluster.local",
     "port": "8081"
 }
 
 embedding_info = {
-    "host": "nomic-embed.ecomm.svc.cluster.local",
+    "host": "embed-svc.ecomm.svc.cluster.local",
     "port": "8082"
 }
 
 microservices_info = {
-    "ecomm-host": "ecomm.ecomm.svc.cluster.local",
+    "ecomm-host": "ecomm-svc.ecomm.svc.cluster.local",
     "ecomm-port": "8079",
-    "mcp-host": "mcp.ecomm.svc.cluster.local",
+    "mcp-host": "mcp-svc.ecomm.svc.cluster.local",
     "mcp-port": "8075",
-    "rag-host": "rag.ecomm.svc.cluster.local",
+    "rag-host": "rag-svc.ecomm.svc.cluster.local",
     "rag-port": "8080",
-    "redis-insights-host": "redis-insight.tools.svc.cluster.local",
+    "redis-insights-host": "redis-insight-svc.ecomm-tools.svc.cluster.local",
     "redis-insights-port": "5540",
-    "mongo-express-host": "mongo-express.tools.svc.cluster.local",
+    "mongo-express-host": "mongo-express-svc.ecomm-tools.svc.cluster.local",
     "mongo-express-port": "8083"
 }
 
@@ -174,7 +174,6 @@ llm_eks_stack = LlmEksStack(
     "LlmEks",
     cluster=kubernetes_stack.eks_cluster,
     lustre_info=lustre_stack.luster_info,
-    fsx_bucket=lustre_stack.data_bucket,
     env=cdk.Environment(
         account=cdk.Aws.ACCOUNT_ID,
         region=cdk.Aws.REGION,

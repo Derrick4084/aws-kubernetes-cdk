@@ -13,8 +13,7 @@ from constructs import Construct
 class LlmEksStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, 
             cluster: eks.Cluster,
-            lustre_info: dict,
-            fsx_bucket: s3.Bucket, 
+            lustre_info: dict, 
             **kwargs
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -35,8 +34,8 @@ class LlmEksStack(Stack):
                     "s3:GetBucketLocation",
                 ],
                 resources=[
-                    f"{fsx_bucket.bucket_arn}/*",
-                    fsx_bucket.bucket_arn,
+                    f"{lustre_info['fsx-bucket-arn']}/*",
+                    lustre_info['fsx-bucket-arn'],
                 ],
             )
 
@@ -87,12 +86,12 @@ class LlmEksStack(Stack):
 
         model_download = cluster.add_manifest("model-download", 
             yaml.safe_load(open("llm/model-download.yaml").read().format(      
-                model_bucket=fsx_bucket.bucket_name,
+                model_bucket=lustre_info['fsx-bucket-name'],
         )))
 
         embedding_download = cluster.add_manifest("embeddings-download", 
             yaml.safe_load(open("embedding/embedding-download.yaml").read().format(      
-                model_bucket=fsx_bucket.bucket_name,
+                model_bucket=lustre_info['fsx-bucket-name'],
         )))
 
 

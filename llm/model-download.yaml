@@ -3,8 +3,6 @@ kind: Job
 metadata:
   name: model-download
   namespace: ecomm
-  labels:
-    guide: ai-eks-docs
 spec:
   backoffLimit: 10
   activeDeadlineSeconds: 3600

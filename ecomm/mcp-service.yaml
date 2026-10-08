@@ -59,14 +59,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp
+  name: mcp-svc
   namespace: ecomm
   labels:
     app: mcp
 spec:
   selector:
     app: mcp
-  clusterIP: None
+  type: ClusterIP
   ports:
     - name: mcp-http
       port: 8075
