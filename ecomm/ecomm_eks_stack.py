@@ -97,20 +97,19 @@ class EcommEksStack(Stack):
         external_secrets_chart.node.add_dependency(external_secrets_ns)
 
 
-        cluster_secret_store = cluster.add_manifest("ClusterSecretStore", 
-            yaml.safe_load(open("ecomm/cluster-secret-store.yaml").read().format(
-                    region=Aws.REGION
+        with open("ecomm/image-pull.yaml", "r") as f:
+            image_pull_manifests = [
+                image_pull_manifest
+                for image_pull_manifest in yaml.safe_load_all(
+                    f.read().format(
+                        region=Aws.REGION
+                    )
                 )
-            )
-        )
-        cluster_secret_store.node.add_dependency(external_secrets_chart)
+                if image_pull_manifest is not None
+            ]
 
-
-         
-        image_pull = cluster.add_manifest("GhcrImagePull", 
-            yaml.safe_load(open("ecomm/image-pull.yaml").read()))
-        image_pull.node.add_dependency(ecomm_ns)
-        image_pull.node.add_dependency(cluster_secret_store)
+        for i, image_pull_manifest in enumerate(image_pull_manifests):
+            cluster.add_manifest(f"ImagePullManifest{i}", image_pull_manifest)
 
         
         ecomm_role_statements = RoleStatements()

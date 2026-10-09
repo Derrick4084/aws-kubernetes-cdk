@@ -1,15 +1,25 @@
 apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: aws-secretsmanager
+  namespace: ecomm
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: "{region}"
+
+---
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: ghcr-image-pull
   namespace: ecomm
 spec:
   refreshInterval: 1h
-
   secretStoreRef:
     name: aws-secretsmanager
     kind: ClusterSecretStore
-
   target:
     name: ghcr-image-pull
     creationPolicy: Owner
@@ -17,8 +27,7 @@ spec:
       type: kubernetes.io/dockerconfigjson
       data:
         .dockerconfigjson: >-
-          {"auths":{"ghcr.io":{"username":"{{ .username }}","password":"{{ .password }}","auth":"{{ printf "%s:%s" .username .password | b64enc }}"}}}
-
+          {{"auths":{{"ghcr.io":{{"username":"{{{{ .username }}}}","password":"{{{{ .password }}}}","auth":"{{{{ printf "%s:%s" .username .password | b64enc }}}}"}}}}}}
   data:
     - secretKey: username
       remoteRef:
