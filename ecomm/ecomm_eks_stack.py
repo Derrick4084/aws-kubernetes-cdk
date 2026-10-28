@@ -2,8 +2,7 @@ import yaml
 from aws_cdk import (
     Stack,
     Aws,
-    aws_eks as eks,
-    aws_iam as _iam,
+    aws_eks as eks
 )
 from constructs import Construct
 from configs.roles import RoleStatements
@@ -11,7 +10,7 @@ from configs.roles import RoleStatements
 
 class EcommEksStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, 
-                 cluster: eks.Cluster,
+                 cluster: eks.ICluster,
                  pg_info: dict,
                  docdb_info: dict,
                  embedding_info: dict,
@@ -25,76 +24,28 @@ class EcommEksStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
 
+        role_statemens = RoleStatements()
 
-        external_secrets_ns = cluster.add_manifest(
-            "ExternalSecretsNamespace",
-            yaml.safe_load(open("ecomm/external-secrets-ns.yaml").read())
-        )
-
-        ecomm_ns = cluster.add_manifest(
-            "EcommAppNamespace",
-            yaml.safe_load(open("ecomm/ecomm-ns.yaml").read())
-        )
-
-        
-           
-        external_secrets_role = _iam.Role(
-            self, "ExternalSecretsPodIdentityRole",
-            role_name="ExternalSecretsPodIdentityRole",
-            assumed_by=_iam.ServicePrincipal(
-                "pods.eks.amazonaws.com"
-            ).with_session_tags(),
-            description="Pod Identity role for External Secrets Operator",
-        )
-        external_secrets_role.add_to_policy(
-            _iam.PolicyStatement(
-                sid="ReadEcommGhcrSecret",
-                effect=_iam.Effect.ALLOW,
-                actions=[
-                    "secretsmanager:GetSecretValue",
-                    "secretsmanager:DescribeSecret",
-                ],
-                resources=[
-                    f"arn:aws:secretsmanager:{Aws.REGION}:{Aws.ACCOUNT_ID}:secret:github-secret-token-*"
-                ],
-            )
-        )
-        
-        external_secrets_sa = eks.ServiceAccount(
+        ecomm_pod_role = role_statemens.ecomm_pod_id_role_stmt(self)
+        ecomm_pod_sa = eks.ServiceAccount(
             self,
-            "ExternalSecretsServiceAccount",
+            "EcommAppServiceAccount",
             cluster=cluster,
-            name="external-secrets-sa",
-            namespace="external-secrets",
-        )
-        external_secrets_sa.node.add_dependency(external_secrets_ns)
+            name="ecomm",
+            namespace="ecomm",
+        ) 
+        ecomm_pod_sa.node.add_dependency(ecomm_pod_role)
 
-        external_pod_identity = eks.CfnPodIdentityAssociation(
+
+        ecomm_pod_identity = eks.CfnPodIdentityAssociation(
             self,
-            "ExternalSecretsPodIdentityAssociation",
+            "EcommPodIdentityAssociation",
             cluster_name=cluster.cluster_name,
-            namespace=external_secrets_sa.service_account_namespace,
-            service_account="external-secrets-sa",
-            role_arn=external_secrets_role.role_arn,
+            namespace="ecomm",
+            service_account="ecomm",
+            role_arn=ecomm_pod_role.role_arn,
         )
-        external_pod_identity.node.add_dependency(external_secrets_sa)
-
-        external_secrets_chart = cluster.add_helm_chart(
-            "ExternalSecretsOperator",
-            repository="https://charts.external-secrets.io",
-            chart="external-secrets",
-            release="external-secrets",
-            namespace="external-secrets",
-            create_namespace=False,
-            values={
-                "installCRDs": True,
-                "serviceAccount": {
-                    "create": False,
-                    "name": "external-secrets-sa",
-                },
-            },
-        )
-        external_secrets_chart.node.add_dependency(external_secrets_ns)
+        ecomm_pod_identity.node.add_dependency(ecomm_pod_sa)
 
 
         with open("ecomm/image-pull.yaml", "r") as f:
@@ -108,35 +59,18 @@ class EcommEksStack(Stack):
                 if image_pull_manifest is not None
             ]
 
+        previous_manifest = None
+
         for i, image_pull_manifest in enumerate(image_pull_manifests):
-            cluster.add_manifest(f"ImagePullManifest{i}", image_pull_manifest)
+            manifest = cluster.add_manifest(f"ImagePullManifest{i}", image_pull_manifest)
+            # manifest.node.add_dependency(ecomm_ns)
+            if previous_manifest is not None:
+                manifest.node.add_dependency(previous_manifest)
+
+            previous_manifest = manifest
 
         
-        ecomm_role_statements = RoleStatements()
-
-        ecomm_pod_role = ecomm_role_statements.ecomm_pod_id_role_stmt(self)
-
-        ecomm_pod_sa = eks.ServiceAccount(
-            self,
-            "EcommAppServiceAccount",
-            cluster=cluster,
-            name="ecomm-sa",
-            namespace="ecomm",
-        )
-        ecomm_pod_sa.node.add_dependency(ecomm_ns)
-        
-        ecomm_pod_identity = eks.CfnPodIdentityAssociation(
-            self,
-            "EcommPodIdentityAssociation",
-            cluster_name=cluster.cluster_name,
-            namespace=ecomm_pod_sa.service_account_namespace,
-            service_account="ecomm-sa",
-            role_arn=ecomm_pod_role.role_arn,
-        )
-        ecomm_pod_identity.node.add_dependency(ecomm_pod_sa)
-
-        
-
+        image_pull_dependency = previous_manifest
 
 
         with open("ecomm/ecomm-service.yaml", "r") as f:
@@ -157,11 +91,12 @@ class EcommEksStack(Stack):
             ]
 
         for i, ecomm_manifest in enumerate(ecomm_manifests):
-            cluster.add_manifest(f"EcommManifest{i}", ecomm_manifest)
+            manifest = cluster.add_manifest(f"EcommManifest{i}", ecomm_manifest)
+            if image_pull_dependency is not None:
+                manifest.node.add_dependency(image_pull_dependency)
+                # manifest.node.add_dependency(secret_store)
 
-        
-
-
+            
         with open("ecomm/mcp-service.yaml", "r") as f:
             mcp_manifests = [
                 mcp_manifest
@@ -178,9 +113,13 @@ class EcommEksStack(Stack):
                 if mcp_manifest is not None
             ]
         for i, mcp_manifest in enumerate(mcp_manifests):
-            cluster.add_manifest(f"McpManifest{i}", mcp_manifest)
+            manifest = cluster.add_manifest(f"McpManifest{i}", mcp_manifest)
+            if image_pull_dependency is not None:
+                manifest.node.add_dependency(image_pull_dependency)
+                # manifest.node.add_dependency(secret_store)
 
-
+            
+            
         with open("ecomm/rag-service.yaml", "r") as f:
             rag_manifests = [
                 rag_manifest
@@ -203,7 +142,11 @@ class EcommEksStack(Stack):
                 if rag_manifest is not None
             ]   
         for i, rag_manifest in enumerate(rag_manifests):
-            cluster.add_manifest(f"RagManifest{i}", rag_manifest)
+            manifest = cluster.add_manifest(f"RagManifest{i}", rag_manifest)
+            if image_pull_dependency is not None:
+                manifest.node.add_dependency(image_pull_dependency)
+                # manifest.node.add_dependency(secret_store)
+            
 
 
         with open("ecomm/mail-service.yaml", "r") as f:

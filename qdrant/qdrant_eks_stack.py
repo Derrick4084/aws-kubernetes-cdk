@@ -1,16 +1,14 @@
 import yaml
 from aws_cdk import (
     Stack,
-    aws_ec2 as ec2,
     aws_eks as eks,
-    CfnOutput
 )
 from constructs import Construct
 
 
 class QdrantEksStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, 
-            cluster: eks.Cluster, 
+            cluster: eks.ICluster,
             **kwargs
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)

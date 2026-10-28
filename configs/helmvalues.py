@@ -3,51 +3,52 @@ class HelmValues:
     def __init__(self):
         pass
 
-    def get_alb_values(self, clusername: str, service_acct_name: str):
+    def get_alb_values(self, clustername: str, service_acct_name: str, vpc_id: str):
         return {
-            "clusterName": clusername,   
+            "clusterName": clustername,
+            "vpcId": vpc_id,
             "serviceAccount": {
                 "create": False,
                 "name": service_acct_name,
             },
             
-            
+           
         }
 
     
 
     def get_spark_values(self):
         return {
-        "controller": {
-            "serviceAccount": {
-                "create": True,
-                "name": "spark-operator-controller-sa",
+            "controller": {
+                "serviceAccount": {
+                    "create": True,
+                    "name": "spark-operator-controller",
+                },
+                "rbac": {
+                    "create": True,
+                },
             },
-            "rbac": {
-                "create": True,
+            "webhook": {
+                "enable": True,
+                "serviceAccount": {
+                    "create": True,
+                    "name": "spark-operator-webhook",
+                },
+                "rbac": {
+                    "create": True,
+                },
             },
-        },
-        "webhook": {
-            "enable": True,
-            "serviceAccount": {
-                "create": True,
-                "name": "spark-operator-webhook-sa",
+            "spark": {
+                "serviceAccount": {
+                    "create": True,
+                    "name": "spark",
+                },
+                "jobNamespaces": [
+                    "spark-jobs",
+                    "spark"
+                ],
             },
-            "rbac": {
-                "create": True,
-            },
-        },
-        "spark": {
-            "serviceAccount": {
-                "create": True,
-                "name": "spark-sa",
-            },
-            "jobNamespaces": [
-                "spark-jobs",
-                "spark"
-            ],
-        },
-    }
+        }
 
 
     def get_nvidia_values(self):
@@ -78,7 +79,7 @@ class HelmValues:
     }
 
 
-    def get_karpenter_values(self, clustername, cluster_endpoint, queue_name):
+    def get_karpenter_values(self, clustername, cluster_endpoint, queue_name, aws_region):
         return {
             "settings": {
                 "clusterName": f"{clustername}",
@@ -89,9 +90,16 @@ class HelmValues:
                 }
             },
             "serviceAccount": {
-                "name": "karpenter-sa"
+                "create": False,
+                "name": "karpenter"
             },
             "controller": {
+                "env": [
+                    {
+                        "name": "AWS_REGION",
+                        "value": f"{aws_region}",
+                    },
+                ],
                 "resources": {
                     "requests": {
                         "cpu": 1,

@@ -11,8 +11,7 @@ class RolePolicyStatements:
         pass
     
    
-    @staticmethod
-    def amp_iamproxy_ingest_statement():
+    def amp_iamproxy_ingest_statement(self):
         policy_stmnt = [_iam.PolicyStatement(
                     actions=["aps:RemoteWrite", 
                              "aps:GetSeries", 
@@ -25,8 +24,8 @@ class RolePolicyStatements:
                     )]
         return policy_stmnt
     
-    @staticmethod
-    def amp_iamproxy_query_statement():
+    
+    def amp_iamproxy_query_statement(self):
         policy_stmnt = [_iam.PolicyStatement(
                     actions=["aps:QueryMetrics",
                              "aps:GetSeries", 
@@ -40,8 +39,7 @@ class RolePolicyStatements:
         return policy_stmnt
     
 
-    @staticmethod
-    def grafana_managed_statement(workspace_arn: str, amp_workspace_arn: str):
+    def grafana_managed_statement(self, workspace_arn: str, amp_workspace_arn: str):
         policy_stmnt = [
             _iam.PolicyStatement(
                 actions=[
@@ -68,8 +66,7 @@ class RolePolicyStatements:
         return policy_stmnt
 
     
-    @staticmethod
-    def grafana_inline_statement(acc_id):
+    def grafana_inline_statement(self, acc_id):
         policy_stmnt = [
                     _iam.PolicyStatement(
                         actions=[
@@ -91,28 +88,15 @@ class RolePolicyStatements:
               ]               
         return policy_stmnt
 
-
-    
-    @staticmethod
-    def eks_cluster_statement():
+   
+    def eks_cluster_statement(self):
         policy_stmnt = [
             _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSClusterPolicy")
         ]               
         return policy_stmnt
 
     
-    @staticmethod
-    def karp_node_statement():
-        policy_stmnt = [
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSWorkerNodePolicy"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKS_CNI_Policy"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly"),
-                  _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
-              ]               
-        return policy_stmnt
-
-    @staticmethod
-    def ecomm_pod_statement():
+    def ecomm_pod_statement(self):
         policy_stmnt = [
             _iam.PolicyStatement(
                 actions=[
@@ -141,15 +125,46 @@ class RolePolicyStatements:
                 effect=_iam.Effect.ALLOW,
                 resources=["*"]
             ),
+            _iam.PolicyStatement(
+                actions=[
+                    "elasticache:Connect"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=[
+                    f"arn:aws:elasticache:{Aws.REGION}:{Aws.ACCOUNT_ID}:serverlesscache:*"
+                ]
+            ),
+            _iam.PolicyStatement(
+                actions=[
+                    "s3:GetObject",
+                ],
+                resources=[
+                    f"arn:aws:s3:::all-purpose-utility/certs/ca-bundle.pem"
+                ],
+            )
         ]
         return policy_stmnt
 
 
+    def karp_node_statement(self):
+        policy_stmnt = [
+                    _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKSWorkerNodePolicy"),
+                    _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEKS_CNI_Policy"),
+                    _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly"),
+                    _iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
+                ]               
+        return policy_stmnt
 
     
-
-    @staticmethod
-    def karp_controller_statement(scope, clustername: str, clusterarn: str, rolearn: str, queuearn: str, region: str):
+    def karp_controller_statement(
+            self,
+            scope,
+            clustername: str, 
+            clusterarn: str,  
+            queuearn: str, 
+            region: str,
+            system_node_group_role_arn: str
+        ):
         policy_stmnt = [
             _iam.PolicyStatement(
                     sid="KarpenterEC2Launch",
@@ -160,8 +175,7 @@ class RolePolicyStatements:
                         "ec2:DeleteLaunchTemplate",
                         "ec2:CreateFleet"
                     ],
-                    resources=["*"],
-                    
+                    resources=["*"],                   
                 ),
             _iam.PolicyStatement(
                 sid="KarpenterResourceDiscovery",
@@ -173,6 +187,7 @@ class RolePolicyStatements:
                         "ec2:DescribeSecurityGroups",
                         "ec2:DescribeLaunchTemplates",
                         "ec2:DescribeInstances",
+                        "ec2:DescribeInstanceStatus",
                         "ec2:DescribeInstanceTypes",
                         "ec2:DescribeInstanceTypeOfferings",
                         "ec2:DescribeCapacityReservations",
@@ -193,13 +208,11 @@ class RolePolicyStatements:
                 sid="AllowPassingInstanceRole",
                 effect=_iam.Effect.ALLOW,
                 actions=["iam:PassRole"],
-                resources=[rolearn],
+                resources=[system_node_group_role_arn],
                 conditions={
                         "StringEquals": {
                             "iam:PassedToService": "ec2.amazonaws.com"
-                        }
-                    },
-                    
+                        }}
             ),            
             _iam.PolicyStatement(
                 sid="EKSClusterEndpointLookup",
@@ -286,10 +299,7 @@ class RolePolicyStatements:
         return policy_stmnt
 
 
-
-    @staticmethod
-    def alb_loadbalancer_statement():
-
+    def alb_loadbalancer_statement(self):
         policy_stmnt = [
             _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
@@ -303,7 +313,6 @@ class RolePolicyStatements:
                 }
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -339,7 +348,6 @@ class RolePolicyStatements:
             ],
             resources=["*"],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -363,7 +371,6 @@ class RolePolicyStatements:
             ],
             resources=["*"],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -372,7 +379,6 @@ class RolePolicyStatements:
             ],
             resources=["*"],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -380,7 +386,6 @@ class RolePolicyStatements:
             ],
             resources=["*"],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -398,7 +403,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -415,7 +419,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -430,7 +433,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -444,7 +446,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -455,7 +456,6 @@ class RolePolicyStatements:
             ],
             resources=["*"],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -474,7 +474,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -488,7 +487,6 @@ class RolePolicyStatements:
                 "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*",
             ],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -511,7 +509,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -534,7 +531,6 @@ class RolePolicyStatements:
                 },
             },
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -545,7 +541,6 @@ class RolePolicyStatements:
                 "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
             ],
         ),
-
         _iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             actions=[
@@ -555,11 +550,10 @@ class RolePolicyStatements:
                 "elasticloadbalancing:RemoveListenerCertificates",
                 "elasticloadbalancing:ModifyRule",
                 "elasticloadbalancing:SetRulePriorities",
-            ],
+                ],
             resources=["*"],
-        ),
-    ]
-
+            ),
+        ]
         return policy_stmnt
 
         

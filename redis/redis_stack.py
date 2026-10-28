@@ -3,7 +3,8 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_elasticache as elasticache,
     Token,
-    RemovalPolicy
+    RemovalPolicy,
+    CfnOutput
 )
 from constructs import Construct
 
@@ -53,26 +54,22 @@ class RedisClusterStack(Stack):
             port=6379,
             cache_subnet_group_name=redis_subnet_group.cache_subnet_group_name,
             security_group_ids=[self.redis_sg.security_group_id],
-
             automatic_failover_enabled=True,
             multi_az_enabled=True,
             num_cache_clusters=2,
-
-            # parameter_group_name="default.redis6.x",
-            # replication_group_id="redis-cluster",
-            # snapshot_retention_limit=7,
-            # snapshot_window="05:00-06:00",
-            # preferred_maintenance_window="sun:06:00-sun:07:00",
             at_rest_encryption_enabled=True,
             transit_encryption_enabled=True,
-            
+            transit_encryption_mode="required"    
         )
         self.redis_cluster.apply_removal_policy(RemovalPolicy.DESTROY)
+
+
+        CfnOutput(self, "RedisEndpoint", value=self.redis_cluster.attr_primary_end_point_address)   
 
     @property
     def redis_info(self) -> dict:
         return {
-            "redis-endpoint": Token.as_string(self.redis_cluster.attr_primary_end_point),
+            "redis-endpoint": Token.as_string(self.redis_cluster.attr_primary_end_point_address),
             "redis-port": Token.as_string(self.redis_cluster.attr_primary_end_point_port),
             "redis-sg-id": self.redis_sg.security_group_id
         }

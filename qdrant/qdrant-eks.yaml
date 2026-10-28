@@ -55,7 +55,7 @@ spec:
     - metadata:
         name: qdrant-storage
       spec:
-        accessModes: ["readWriteOnce"]
+        accessModes: ["ReadWriteOnce"]
         storageClassName: "qdrant-gp3"
         resources:
           requests:
@@ -104,16 +104,4 @@ spec:
               service:
                 name: qdrant-svc
                 port:
-                  number: 6333
-
-
-
-
-
-
-
-
-
-
-
-        
+                  number: 6333       

@@ -15,7 +15,7 @@ spec:
       labels:
         app: mongo-express
     spec:
-      serviceAccountName: mongo-express-sa
+      serviceAccountName: tools
       initContainers:
         - name: download-documentdb-ca
           image: public.ecr.aws/aws-cli/aws-cli:2

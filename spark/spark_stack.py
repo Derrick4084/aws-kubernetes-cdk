@@ -12,7 +12,7 @@ from configs.roles import RoleStatements
    
 class SparkStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, cluster: eks.Cluster, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, cluster: eks.ICluster, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
   
         helm_values = HelmValues()
@@ -60,6 +60,7 @@ class SparkStack(Stack):
             repository="https://kubeflow.github.io/spark-operator",
             create_namespace=True,
             namespace="spark-operator",
+            release="spark-operator",
             version="2.5.2",
             values=helm_values.get_spark_values()
         )

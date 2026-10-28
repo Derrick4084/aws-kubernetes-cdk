@@ -1,100 +1,111 @@
 import yaml
 from aws_cdk import (
     Stack,
-    aws_ec2 as ec2,
     aws_eks as eks,
-    aws_iam as _iam,
-    aws_s3 as s3,
-    Aws
 )
 from constructs import Construct
+
+from configs.roles import RoleStatements
 
 
 class LlmEksStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, 
-            cluster: eks.Cluster,
-            lustre_info: dict, 
+            cluster: eks.ICluster,
+            lustre_info: dict,
+            karpenter_node_role_name: str, 
             **kwargs
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        role_statements = RoleStatements()
 
-        model_storage_pod_id_role = _iam.Role(
-            self,
-            "ModelStorageRole",
-            assumed_by=_iam.ServicePrincipal("pods.eks.amazonaws.com").with_session_tags(),
-            description="IAM role for model storage in S3"
-        )
-        model_storage_pod_id_role.add_to_policy(
-            _iam.PolicyStatement(
-                actions=[
-                    "s3:PutObject",
-                    "s3:GetObject",
-                    "s3:ListBucket",
-                    "s3:GetBucketLocation",
-                ],
-                resources=[
-                    f"{lustre_info['fsx-bucket-arn']}/*",
-                    lustre_info['fsx-bucket-arn'],
-                ],
-            )
-
+        model_storage_pod_id_role = role_statements.model_storage_pod_id_role_stmt(
+            self, 
+            fsx_bucket_arn=lustre_info["fsx-bucket-arn"]
         )
 
-        model_storage_pod_id_role.add_to_policy(
-            _iam.PolicyStatement(
-                actions=[
-                    "secretsmanager:GetSecretValue",
-                    "secretsmanager:DescribeSecret"
-                ],
-                effect=_iam.Effect.ALLOW,
-                resources=[
-                    f"arn:aws:secretsmanager:{Aws.REGION}:{Aws.ACCOUNT_ID}:secret:open-weather-api*"
-                ]
-            ),
-        )
-
-        model_storage_sa = eks.ServiceAccount(
+        
+        eks.ServiceAccount(
             self,
             "ModelStorageServiceAccount",
             cluster=cluster,
-            name="model-storage-sa",
+            name="model-storage",
             namespace="ecomm",
         )
-        
+           
         eks.CfnPodIdentityAssociation(
             self,
             "ModelStoragePodIdentityAssociation",
             cluster_name=cluster.cluster_name,
-            namespace=model_storage_sa.service_account_namespace,
-            service_account="model-storage-sa",
+            namespace="ecomm",
+            service_account="model-storage",
             role_arn=model_storage_pod_id_role.role_arn,
         )
+        
 
-
-        model_volume = cluster.add_manifest("model-fsx-volume", 
-                yaml.safe_load(open("lustre/llm-pv.yaml").read().format(
+        # Persistant volume for LLM and embeddings model download
+        model_pv = cluster.add_manifest("model-pv", 
+                yaml.safe_load(open("lustre/lustre-pv.yaml").read().format(
                     fsx_id=lustre_info["fsx-id"], 
                     fsx_dns_name=lustre_info["fsx-dns-name"],
                     fsx_mount_name=lustre_info["fsx-mount-name"]
-                )))
+        )))
+   
+        # Persistant volume claim for LLM and embeddings model storage
+        model_pvc = cluster.add_manifest("model-pvc", 
+                yaml.safe_load(open("lustre/lustre-pvc.yaml").read()))
+        model_pvc.node.add_dependency(model_pv)
 
-        model_volume_claim = cluster.add_manifest("model-fsx-claim", 
-                yaml.safe_load(open("lustre/llm-pvc.yaml").read()))
-        model_volume_claim.node.add_dependency(model_volume)
-
-
+        # Download models into FSX persistant volume
         model_download = cluster.add_manifest("model-download", 
             yaml.safe_load(open("llm/model-download.yaml").read().format(      
                 model_bucket=lustre_info['fsx-bucket-name'],
         )))
+        model_download.node.add_dependency(model_pvc)
 
+        # Download embeddings into FSX persistant volume
         embedding_download = cluster.add_manifest("embeddings-download", 
             yaml.safe_load(open("embedding/embedding-download.yaml").read().format(      
                 model_bucket=lustre_info['fsx-bucket-name'],
         )))
+        embedding_download.node.add_dependency(model_pvc)
 
 
+        #  Karpenter Nodepools    
+        cluster.add_manifest("ecomm-app-nodepool", 
+                        yaml.safe_load(open("karpenter/ecomm-app-np.yaml").read()))
+
+        cluster.add_manifest("embedding-nodepool", 
+                        yaml.safe_load(open("karpenter/embedding-np.yaml").read()))
+
+        cluster.add_manifest("model-nodepool", 
+                        yaml.safe_load(open("karpenter/llm-gpu-np.yaml").read()))
+
+        
+        # Karpenter Nodeclasses  
+        cluster.add_manifest("ecomm-app-nodeclass", 
+                yaml.safe_load(open("karpenter/ecomm-app-nc.yaml").read().format(
+                    role_name=karpenter_node_role_name, 
+                    clustername=cluster.cluster_name
+        )))
+               
+        cluster.add_manifest("embedding-nodeclass", 
+                yaml.safe_load(open("karpenter/embedding-nc.yaml").read().format(
+                    role_name=karpenter_node_role_name, 
+                    clustername=cluster.cluster_name
+        )))
+        
+        cluster.add_manifest("model-nodeclass", 
+                yaml.safe_load(open("karpenter/llm-gpu-nc.yaml").read().format(
+                    role_name=karpenter_node_role_name, 
+                    clustername=cluster.cluster_name
+        )))
+        
+
+
+
+        # Deploy LLM and Embedding models
+        # Depends on model download and embedding download
         with open("llm/model-deployment.yaml", "r") as f:
             model_deploy_manifests = [
                 manifest

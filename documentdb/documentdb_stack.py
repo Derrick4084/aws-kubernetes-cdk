@@ -67,6 +67,9 @@ class DocumentDBStack(Stack):
             db_instance_identifier="instance-1",
             db_instance_class="db.t3.medium"
         )
+
+
+        klkl = self.document_db.attr_cluster_resource_id
     
 
 
@@ -141,6 +144,8 @@ def handler(event, context):
     def docdb_info(self) -> dict:
         return {
             "secret-name": self.documentdb_secret.secret_name,
-            "documentdb_sg_id": self.documentdb_security_group.security_group_id      
+            "documentdb_sg_id": self.documentdb_security_group.security_group_id,
+            "resource_id": self.document_db.attr_cluster_resource_id,   
+            "username": self.documentdb_master_user,     
         }
     

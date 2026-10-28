@@ -50,7 +50,7 @@ spec:
     - metadata:
         name: zipkin-storage
       spec:
-        accessModes: ["readWriteOnce"]
+        accessModes: ["ReadWriteOnce"]
         storageClassName: "zipkin-gp3"
         resources:
           requests:

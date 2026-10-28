@@ -11,7 +11,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: model-storage-sa
+      serviceAccountName: model-storage
       
       containers:
         - name: downloader
@@ -35,7 +35,7 @@ spec:
               bucket = os.environ["MODEL_BUCKET"]
 
               sm = boto3.client("secretsmanager")
-              secret = sm.get_secret_value(SecretId="open-weather-api")
+              secret = sm.get_secret_value(SecretId="hugging-face")
               hf_token = json.loads(secret["SecretString"])["apikey"]
 
               local_dir = Path("/tmp/nomic")
@@ -60,6 +60,14 @@ spec:
                   file_path,
                   bucket,
                   s3_key
+              )
+
+              marker_key = "embeddings/download/.embeddings-download-complete"
+
+              s3.put_object(
+                  Bucket=bucket,
+                  Key=marker_key,
+                  Body=b"complete",
               )
 
               print("Upload complete!")

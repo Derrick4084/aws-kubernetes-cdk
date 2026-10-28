@@ -12,7 +12,7 @@ spec:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: embeddings-nodeclass
-
+      expireAfter: 720h
       requirements:
         - key: kubernetes.io/arch
           operator: In
@@ -24,7 +24,15 @@ spec:
 
         - key: karpenter.k8s.aws/instance-category
           operator: In
-          values: ["m", "c", "r"]
+          values: ["m", "c"]
+
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["m7i", "m7a", "c7i", "c7a"]
+
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["large"]
 
   limits:
     cpu: "500"

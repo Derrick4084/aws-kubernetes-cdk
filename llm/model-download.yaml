@@ -10,7 +10,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: model-storage-sa
+      serviceAccountName: model-storage
       containers:
       - name: downloader
         image: python:3.11-slim
@@ -26,45 +26,35 @@ spec:
           import json
           import boto3
           from pathlib import Path
-          from huggingface_hub import snapshot_download
+          from huggingface_hub import list_repo_files, hf_hub_download
 
           bucket = os.environ["MODEL_BUCKET"]
+          repo_id = "meta-llama/Llama-3.1-8B-Instruct"
 
           sm = boto3.client("secretsmanager")
-          secret = sm.get_secret_value(SecretId="open-weather-api")
+          secret = sm.get_secret_value(SecretId="hugging-face")
           hf_token = json.loads(secret["SecretString"])["apikey"]
-
-          local_dir = Path("/tmp/llama")
-          local_dir.mkdir(parents=True, exist_ok=True)
-
-          print("Downloading Llama-3.1-8B-Instruct from Hugging Face...")
-
-          snapshot_download(
-              repo_id="meta-llama/Llama-3.1-8B-Instruct",
-              local_dir=str(local_dir),
-              token=hf_token,
-              allow_patterns=[
-                  "*.json",
-                  "*.txt",
-                  "*.md",
-                  "*.safetensors",
-                  "*.model",
-              ],
-          )
-
-          print("Uploading model to S3...")
 
           s3 = boto3.client("s3")
 
-          for file_path in local_dir.rglob("*"):
-              if file_path.is_file() and ".cache" not in file_path.parts:
-                  s3_key = (
-                      f"models/Llama-3.1-8B-Instruct/"
-                      f"{{file_path.relative_to(local_dir)}}"
-                  )
+          patterns = (".json", ".txt", ".md", ".safetensors", ".model")
+          files = [f for f in list_repo_files(repo_id, token=hf_token) if f.endswith(patterns)]
 
-                  print(f"Uploading {{file_path.name}}...")
-                  s3.upload_file(str(file_path), bucket, s3_key)
+          for filename in files:
+              print(f"Streaming {{filename}} to S3...")
+              local_path = hf_hub_download(repo_id=repo_id, filename=filename, token=hf_token)
+              s3_key = f"models/Llama-3.1-8B-Instruct/{{filename}}"
+              with open(local_path, "rb") as f:
+                  s3.upload_fileobj(f, bucket, s3_key)
+              os.remove(local_path)
+
+          marker_key = "models/Llama-3.1-8B-Instruct/.llama-download-complete"
+
+          s3.put_object(
+              Bucket=bucket,
+              Key=marker_key,
+              Body=b"complete",
+          )
 
           print("Llama model upload complete!")
           PYTHON
@@ -78,6 +68,9 @@ spec:
           requests:
             memory: "2Gi"
             cpu: "1"
+            ephemeral-storage: "20Gi"
           limits:
             memory: "4Gi"
             cpu: "2"
+            ephemeral-storage: "20Gi"
+     

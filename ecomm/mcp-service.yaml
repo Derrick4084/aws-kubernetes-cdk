@@ -11,13 +11,20 @@ spec:
     matchLabels:
       app: mcp
   template:
+
     metadata:
       labels:
         app: mcp
+        workload-group: ecomm-services
     spec:
+      nodeSelector:
+        karpenter.sh/nodepool: ecomm-nodepool
       imagePullSecrets:
         - name: ghcr-image-pull
-      serviceAccountName: ecomm-sa
+        
+      serviceAccountName: ecomm
+
+
       containers:
         - name: mcp
           image: ghcr.io/derrick4084/spring-ai-mcp:latest
@@ -54,6 +61,15 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    workload-group: ecomm-services
 
 ---
 apiVersion: v1

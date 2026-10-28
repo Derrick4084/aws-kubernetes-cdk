@@ -12,6 +12,7 @@ spec:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: spark-Ec2NodeClass
+      expireAfter: 1h
       requirements:
         - key: kubernetes.io/arch
           operator: In

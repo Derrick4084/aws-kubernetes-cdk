@@ -11,14 +11,18 @@ spec:
     matchLabels:
       app: rag
   template:
+  
     metadata:
       labels:
         app: rag
+        workload-group: ecomm-services
     spec:
+      nodeSelector:
+        karpenter.sh/nodepool: ecomm-nodepool
       imagePullSecrets:
         - name: ghcr-image-pull
 
-      serviceAccountName: ecomm-sa
+      serviceAccountName: ecomm
 
       containers:
         - name: rag
@@ -69,6 +73,15 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    workload-group: ecomm-services
 
 ---
 apiVersion: v1

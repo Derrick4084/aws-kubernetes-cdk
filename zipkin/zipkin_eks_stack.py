@@ -7,7 +7,9 @@ from constructs import Construct
 
 
 class ZipkinEksStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, cluster: eks.Cluster, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, 
+                 cluster: eks.ICluster,
+                 **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
 

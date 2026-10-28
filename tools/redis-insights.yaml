@@ -33,13 +33,14 @@ spec:
         app: redis-insight
 
     spec:
+      serviceAccountName: tools
       containers:
         - name: redis-insight
           image: redis/redisinsight:latest
           imagePullPolicy: Always
 
           ports:
-            - name: redis-insight-http
+            - name: insight-http
               containerPort: 5540
               protocol: TCP
 
@@ -58,14 +59,14 @@ spec:
           readinessProbe:
             httpGet:
               path: /status
-              port: redis-insight-http
+              port: insight-http
             initialDelaySeconds: 10
             periodSeconds: 10
 
           livenessProbe:
             httpGet:
               path: /status
-              port: redis-insight-http
+              port: insight-http
             initialDelaySeconds: 30
             periodSeconds: 30
 
@@ -97,9 +98,9 @@ spec:
   selector:
     app: redis-insight
   ports:
-    - name: redis-insight-http
+    - name: insight-http
       port: 5540
-      targetPort: redis-insight-http
+      targetPort: insight-http
       protocol: TCP
 
 ---

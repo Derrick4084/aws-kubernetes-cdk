@@ -14,7 +14,10 @@ spec:
     metadata:
       labels:
         app: mail
+        workload-group: ecomm-services
     spec:
+      nodeSelector:
+        karpenter.sh/nodepool: ecomm-nodepool
       containers:
         - name: mail
           image: maildev/maildev
@@ -52,6 +55,16 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    workload-group: ecomm-services
+
 
 ---
 apiVersion: v1
