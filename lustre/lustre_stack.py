@@ -1,15 +1,11 @@
 from aws_cdk import (
     aws_ec2 as ec2,
-    aws_eks as eks,
-    aws_iam as _iam,
     aws_s3 as s3,
     Stack,
     aws_fsx as fsx,    
     RemovalPolicy
 )
 from constructs import Construct
-
-from configs.roles import RoleStatements
 
    
 class LustreStack(Stack):
@@ -39,11 +35,14 @@ class LustreStack(Stack):
             security_group_name="fsx-lustre-sg"
         )
 
+
+
+        self.lustre_subnet = vpc.private_subnets[0]
        
         self.model_file_system = fsx.LustreFileSystem(
             self, "ModelFsxLustreFileSystem",
             vpc=vpc,
-            vpc_subnet=vpc.private_subnets[0],
+            vpc_subnet=self.lustre_subnet,
             storage_capacity_gib=1200,
             file_system_type_version=fsx.FileSystemTypeVersion.V_2_15,
             security_group=self.fsx_security_group,
@@ -57,7 +56,7 @@ class LustreStack(Stack):
         )
 
         fsx.CfnDataRepositoryAssociation(
-            self, "DataRepositoryAssociation",
+            self, "ModelDataRepositoryAssociation",
             file_system_id=self.model_file_system.file_system_id,
             file_system_path="/models",
             data_repository_path=f"s3://{self.data_bucket.bucket_name}/models",
@@ -71,8 +70,20 @@ class LustreStack(Stack):
             )
         )
 
-
-        
+        fsx.CfnDataRepositoryAssociation(
+            self, "EmbeddingDataRepositoryAssociation",
+            file_system_id=self.model_file_system.file_system_id,
+            file_system_path="/embeddings",
+            data_repository_path=f"s3://{self.data_bucket.bucket_name}/embeddings",
+            s3=fsx.CfnDataRepositoryAssociation.S3Property(
+                auto_import_policy=fsx.CfnDataRepositoryAssociation.AutoImportPolicyProperty(
+                    events=["NEW", "CHANGED", "DELETED"]
+                ),
+                auto_export_policy=fsx.CfnDataRepositoryAssociation.AutoExportPolicyProperty(
+                    events=["NEW", "CHANGED", "DELETED"]
+                )
+            )
+        )
 
     @property
     def luster_info(self) -> dict:
@@ -81,7 +92,9 @@ class LustreStack(Stack):
             "fsx-dns-name": self.model_file_system.dns_name,
             "fsx-mount-name": self.model_file_system.mount_name,
             "fsx-bucket-arn": self.data_bucket.bucket_arn,
-            "fsx-bucket-name": self.data_bucket.bucket_name
+            "fsx-bucket-name": self.data_bucket.bucket_name,
+            "fsx-sg-id": self.fsx_security_group.security_group_id,
+            "fsx-az": self.lustre_subnet.availability_zone       
         }
 
 

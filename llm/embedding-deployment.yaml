@@ -17,27 +17,24 @@ spec:
     spec:
       serviceAccountName: model-storage    
       nodeSelector:
-        karpenter.sh/nodepool: embeddings-nodepool
+        workload-type: embedding
       initContainers:
-        - name: wait-for-embeddings-download
-          image: public.ecr.aws/docker/library/busybox:1.36
-          command:
-            - /bin/sh
-            - -c
-            - |
-              set -eu
-              until [ -f /model-cache/embeddings/download/.embeddings-download-complete ]; do
-                echo "Waiting for Embeddings model download to complete..."
-                sleep 10
-              done
-              echo "Embeddings model download completed."
-          volumeMounts:
-            - name: model-cache
-              mountPath: /model-cache
-          volumes:
-            - name: model-cache
-              persistentVolumeClaim:
-                claimName: llm-model-store-pvc
+      - name: wait-for-embeddings-download
+        image: public.ecr.aws/docker/library/busybox:1.36
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -eu
+            until [ -f /model-cache/embeddings/download/.embeddings-download-complete ]; do
+              echo "Waiting for Embeddings model download to complete..."
+              sleep 10
+            done
+            echo "Embeddings model download completed."
+        volumeMounts:
+          - name: model-cache
+            mountPath: /model-cache
+        
       containers:
       - name: embedding-server
         image: ghcr.io/ggml-org/llama.cpp:server
@@ -73,14 +70,14 @@ spec:
           limits:
             cpu: "4"
             memory: "8Gi"        
-        volumes:
-        - name: model-cache
-          persistentVolumeClaim:
-            claimName: llm-model-store-pvc
-        - name: dshm
-          emptyDir:
-            medium: Memory
-            sizeLimit: 1Gi
+      volumes:
+      - name: model-cache
+        persistentVolumeClaim:
+          claimName: llm-model-store-pvc
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
 
 ---
 apiVersion: v1

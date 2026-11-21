@@ -1,8 +1,7 @@
-
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: ecomm-nodepool
+  name: ecomm-app-np
 spec:
   template:
     metadata:
@@ -14,7 +13,7 @@ spec:
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: ecomm-general
+        name: ecomm-app-nc
         
       expireAfter: 720h
       requirements:
@@ -49,43 +48,3 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 1m
-
-
-
-
-
-# apiVersion: karpenter.sh/v1
-# kind: NodePool
-# metadata:
-#   name: general-purpose
-# spec:
-#   template:
-#     metadata:
-#       labels:
-#         workload-type: general-purpose
-#     spec:
-#       nodeClassRef:
-#         group: karpenter.k8s.aws
-#         kind: EC2NodeClass
-#         name: general-purpose
-#       expireAfter: 720h
-#       requirements:
-#         - key: kubernetes.io/arch
-#           operator: In
-#           values: ["amd64"]
-#         - key: kubernetes.io/os
-#           operator: In
-#           values: ["linux"]
-#         - key: karpenter.k8s.aws/instance-category
-#           operator: In
-#           values: ["c", "m", "r"]
-#         - key: karpenter.k8s.aws/instance-generation
-#           operator: Gt
-#           values: ["2"]
-#   limits:
-#     cpu: "1000"
-#   disruption:
-#     consolidationPolicy: WhenEmptyOrUnderutilized
-#     consolidateAfter: 30s
-
-    

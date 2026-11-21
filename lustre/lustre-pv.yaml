@@ -17,15 +17,7 @@ spec:
 
   csi:
     driver: fsx.csi.aws.com
-    volumeHandle: "fs-05af0b48f0a0918a3"
+    volumeHandle: "{fsx_id}"
     volumeAttributes:
-      dnsname: "fs-05af0b48f0a0918a3.fsx.us-east-1.amazonaws.com"
-      mountname: "h3ybbaev"
-
-  # csi:
-  #   driver: fsx.csi.aws.com
-  #   volumeHandle: "{fsx_id}"
-  #   volumeAttributes:
-  #     dnsname: "{fsx_dns_name}"
-  #     mountname: "{fsx_mount_name}"
-
+      dnsname: "{fsx_dns_name}"
+      mountname: "{fsx_mount_name}"

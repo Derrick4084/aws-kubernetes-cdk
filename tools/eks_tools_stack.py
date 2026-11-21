@@ -21,9 +21,17 @@ class EksToolsStack(Stack):
 
         role_statements = RoleStatements()
 
+
+        redis_secret = secretsmanager.Secret.from_secret_name_v2(
+            scope=self,
+            id="RedisInsightSecret",
+            secret_name=redis_info["redis-secret-name"]
+        )
+
         tools_pod_id_role = role_statements.tools_pod_id_role_stmt(
             scope=self,
             clusterarn=cluster.cluster_arn,
+            redis_secret_arn=redis_secret.secret_arn,
             documentdb_info=docdb_info
         )
    
@@ -45,10 +53,10 @@ class EksToolsStack(Stack):
         )
 
         mongo_secret = secretsmanager.Secret.from_secret_name_v2(
-                    scope=self,
-                    id="MongoExpressSecret",
-                    secret_name=docdb_info["secret-name"]
-                )
+            scope=self,
+            id="MongoExpressSecret",
+            secret_name=docdb_info["secret-name"]
+        )
         documentdb_endpoint = mongo_secret.secret_value_from_json("documentdb_endpoint").unsafe_unwrap()
         port = mongo_secret.secret_value_from_json("port").unsafe_unwrap()
         username = mongo_secret.secret_value_from_json("username").unsafe_unwrap()
@@ -80,12 +88,17 @@ class EksToolsStack(Stack):
             m = cluster.add_manifest(f"MongoExpressManifest{i}", mongo_express_manifest)
             
 
+
+        
+
         with open("tools/redis-insights.yaml", "r") as f:
             redis_insight_manifests = [
                 redis_insight_manifest
                 for redis_insight_manifest in yaml.safe_load_all(
                     f.read().format(
                         redis_host=redis_info["redis-endpoint"],
+                        redis_port=redis_info["redis-port"],
+                        redis_password=redis_secret.secret_value.unsafe_unwrap()
                     )
                 )
                 if redis_insight_manifest is not None

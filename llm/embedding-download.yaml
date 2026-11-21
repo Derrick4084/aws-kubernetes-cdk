@@ -76,7 +76,7 @@ spec:
           env:
             - name: MODEL_BUCKET
               value: "{model_bucket}"
-
+                
             - name: HF_HUB_DISABLE_XET
               value: "1"
 

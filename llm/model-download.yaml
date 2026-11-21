@@ -48,7 +48,7 @@ spec:
                   s3.upload_fileobj(f, bucket, s3_key)
               os.remove(local_path)
 
-          marker_key = "models/Llama-3.1-8B-Instruct/.llama-download-complete"
+          marker_key = "models/download/.llama-download-complete"
 
           s3.put_object(
               Bucket=bucket,
@@ -62,6 +62,7 @@ spec:
         env:
         - name: MODEL_BUCKET
           value: "{model_bucket}"
+                           
         - name: HF_HUB_DISABLE_XET
           value: "1"
         resources:

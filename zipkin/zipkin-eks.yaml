@@ -11,7 +11,6 @@ parameters:
   throughput: "125"
 
 ---
-
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -30,6 +29,7 @@ spec:
       labels:
         app: zipkin
     spec:
+      serviceAccountName: tools
       containers:
       - name: zipkin
         image: openzipkin/zipkin
@@ -50,7 +50,8 @@ spec:
     - metadata:
         name: zipkin-storage
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes:
+          - ReadWriteOnce
         storageClassName: "zipkin-gp3"
         resources:
           requests:

@@ -5,7 +5,6 @@ from aws_cdk import (
     aws_logs as logs,
     aws_iam as _iam,
     RemovalPolicy,    
-    CfnOutput,
     Stack,
     Tags
 )
@@ -67,7 +66,7 @@ class VpcStack(Stack):
         # create a vpc
         self.vpc = ec2.Vpc(self, "VPC",
           ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
-          availability_zones=[f"{Aws.REGION}a", f"{Aws.REGION}b"],
+          availability_zones=[f"{Aws.REGION}b", f"{Aws.REGION}a"],
           create_internet_gateway=True,
           enable_dns_hostnames=True,
           enable_dns_support=True,
@@ -89,8 +88,7 @@ class VpcStack(Stack):
             )
           }
         )
-
-        
+   
         # Tags for public load balancers
         for subnet in self.vpc.public_subnets:
           Tags.of(subnet).add("kubernetes.io/role/elb", "1")
@@ -115,16 +113,6 @@ class VpcStack(Stack):
                 )        
         )
 
-        eks_cluster_sg = ec2.SecurityGroup(
-            self, "EKSClusterSG",
-            vpc=self.vpc,
-            allow_all_outbound=True,
-            security_group_name="eks_cluster-sg"    
-        )
-        eks_cluster_sg.add_ingress_rule(
-            ec2.Peer.ipv4(self.vpc.vpc_cidr_block), 
-            ec2.Port.all_traffic()
-        )
         
         
         # Endpoints for private subnet with no NAT Gateway
@@ -149,4 +137,3 @@ class VpcStack(Stack):
         #      subnets=ec2.SubnetSelection(subnets=self.vpc.private_subnets)
         #   )
        
-        CfnOutput(self, "EksSecGroup", value=eks_cluster_sg.security_group_id, export_name="EKSSecurityGroupID")

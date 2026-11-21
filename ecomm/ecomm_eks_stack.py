@@ -24,28 +24,28 @@ class EcommEksStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
 
-        role_statemens = RoleStatements()
+        # role_statemens = RoleStatements()
 
-        ecomm_pod_role = role_statemens.ecomm_pod_id_role_stmt(self)
-        ecomm_pod_sa = eks.ServiceAccount(
-            self,
-            "EcommAppServiceAccount",
-            cluster=cluster,
-            name="ecomm",
-            namespace="ecomm",
-        ) 
-        ecomm_pod_sa.node.add_dependency(ecomm_pod_role)
+        # ecomm_pod_role = role_statemens.ecomm_pod_id_role_stmt(self)
+        # ecomm_pod_sa = eks.ServiceAccount(
+        #     self,
+        #     "EcommAppServiceAccount",
+        #     cluster=cluster,
+        #     name="ecomm",
+        #     namespace="ecomm",
+        # ) 
+        # ecomm_pod_sa.node.add_dependency(ecomm_pod_role)
 
 
-        ecomm_pod_identity = eks.CfnPodIdentityAssociation(
-            self,
-            "EcommPodIdentityAssociation",
-            cluster_name=cluster.cluster_name,
-            namespace="ecomm",
-            service_account="ecomm",
-            role_arn=ecomm_pod_role.role_arn,
-        )
-        ecomm_pod_identity.node.add_dependency(ecomm_pod_sa)
+        # ecomm_pod_identity = eks.CfnPodIdentityAssociation(
+        #     self,
+        #     "EcommPodIdentityAssociation",
+        #     cluster_name=cluster.cluster_name,
+        #     namespace="ecomm",
+        #     service_account="ecomm",
+        #     role_arn=ecomm_pod_role.role_arn,
+        # )
+        # ecomm_pod_identity.node.add_dependency(ecomm_pod_sa)
 
 
         with open("ecomm/image-pull.yaml", "r") as f:

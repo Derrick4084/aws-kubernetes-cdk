@@ -6,12 +6,19 @@ from constructs import Construct
 from configs.policies import RolePolicyStatements
 
 
+
 class RoleStatements:
     
     def __init__(self):
         pass
 
-
+    '''
+    Base role for pods to assume IAM roles
+    This is used to create the base role for pods to assume IAM roles
+    The role is created with the required trust policy to allow pods
+    to assume the role
+    The role is then attached to the pods as an IAM role
+    '''
     def get_principal(self, scope: Construct, role_name: str) -> _iam.Role:
         principal = _iam.Role(scope, f"{role_name}",
             assumed_by=_iam.ServicePrincipal(
@@ -22,11 +29,73 @@ class RoleStatements:
         )
         return principal
 
+    
+    '''
+    System node group role
+    This role is used by the EKS system node group
+    The role is created with the required managed policies
+    and custom policy to allow the nodes to function properly
+    '''
+    def system_node_group_role_stmt(self, scope: Construct) -> _iam.Role:
+        role = _iam.Role(
+            scope,
+            "SystemNodeGroupRole",
+            role_name="SystemNodeGroupRole",
+            assumed_by=_iam.ServicePrincipal("ec2.amazonaws.com"),
+            managed_policies=[
+                _iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEKSWorkerNodePolicy"
+                ),
+                _iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEC2ContainerRegistryReadOnly"
+                ),
+                _iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEKS_CNI_Policy"
+                ),
+                _iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonSSMManagedInstanceCore"
+                ),
+            ],
+            
+        )
+        role.add_to_policy(    
+            _iam.PolicyStatement(
+                actions=[
+                    "ec2:DescribeInstanceTypeOfferings",
+                    "ec2:DescribeInstanceTypes",
+                    "ec2:DescribeInstanceStatus",
+                    "ec2:DescribeSpotPriceHistory",
+                    "pricing:GetProducts"
+                ],
+                effect=_iam.Effect.ALLOW,
+                resources=["*"]
+                )
+        )
+        return role
 
+    '''
+    Karpenter EC2 node role
+    '''
+    def karpenter_node_role_stmt(self, scope: Construct, clustername: str) -> _iam.Role:
+        policy_statements = RolePolicyStatements()
+        role = _iam.Role(
+            scope,
+            "KarpenterNodeRole",
+            role_name=f"KarpenterNodeRole-{clustername}",
+            assumed_by=_iam.ServicePrincipal("ec2.amazonaws.com"),
+            managed_policies=policy_statements.karp_node_statement(),
+        )
+        return role
+
+
+    '''
+    Pod Identity roles for tools deployed on EKS
+    '''
     def tools_pod_id_role_stmt(
             self,
             scope: Construct,
             clusterarn: str,
+            redis_secret_arn: str,
             documentdb_info: dict, 
         ) -> _iam.Role:
 
@@ -37,14 +106,11 @@ class RoleStatements:
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions=[
-                    "elasticache:Connect"
+                    "secretsmanager:GetSecretValue",
                 ],
                 effect=_iam.Effect.ALLOW,
                 resources=[
-                    f"arn:{Aws.PARTITION}:elasticache:{Aws.REGION}:"
-                    f"{Aws.ACCOUNT_ID}:serverlesscache:*",
-                    f"arn:{Aws.PARTITION}:elasticache:{Aws.REGION}:"
-                    f"{Aws.ACCOUNT_ID}:user:*",
+                    redis_secret_arn
                 ]
             )
         )
@@ -147,16 +213,7 @@ class RoleStatements:
         return role
 
 
-    def karpenter_node_role_stmt(self, scope: Construct, clustername: str) -> _iam.Role:
-        policy_statements = RolePolicyStatements()
-        role = _iam.Role(
-            scope,
-            "KarpenterNodeRole",
-            role_name=f"KarpenterNodeRole-{clustername}",
-            assumed_by=_iam.ServicePrincipal("ec2.amazonaws.com"),
-            managed_policies=policy_statements.karp_node_statement(),
-        )
-        return role
+   
 
         
     def karpenter_ctrl_pod_id_role_stmt(
@@ -165,7 +222,7 @@ class RoleStatements:
         cluster_name: str,
         cluster_arn: str, 
         queue_arn: str,
-        system_node_group_role_arn: str
+        karpenter_node_role_arn: str
     ) -> _iam.Role:
 
         policy_statements = RolePolicyStatements()
@@ -192,7 +249,7 @@ class RoleStatements:
                     clusterarn=cluster_arn, 
                     queuearn=queue_arn, 
                     region=f"{Aws.REGION}",
-                    system_node_group_role_arn=system_node_group_role_arn
+                    karpenter_node_role_arn=karpenter_node_role_arn
                 )
             )
         )
@@ -229,7 +286,7 @@ class RoleStatements:
         return role
 
 
-    def ecomm_pod_id_role_stmt(self, scope: Construct):
+    def ecomm_pod_id_role_stmt(self, scope: Construct) -> _iam.Role:
         policy_statements = RolePolicyStatements()
         role = self.get_principal(scope, role_name="EcommPodIdentityRole")
         role.attach_inline_policy(

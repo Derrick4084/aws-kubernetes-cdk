@@ -10,13 +10,15 @@ from postgres.postgres_stack import PostgresDBStack
 from qdrant.qdrant_eks_stack import QdrantEksStack
 from redis.redis_stack import RedisClusterStack
 from zipkin.zipkin_eks_stack import ZipkinEksStack
-from llm.llm_eks_stack import LlmEksStack
+from llm.llm_manifest_stack import LlmManifestStack
 from tools.eks_tools_stack import EksToolsStack
 
 
 
 
 app = cdk.App()
+
+clustername = "eks-spark-llm"
 
 model_info = {
     "host": "vllm-svc.ecomm.svc.cluster.local",
@@ -105,7 +107,7 @@ kubernetes_stack = EksStack(
     app, 
     "Eks", 
     vpc=vpc_stack.vpc,
-    lustre_sg_id=lustre_stack.fsx_security_group.security_group_id,
+    lustre_info=lustre_stack.luster_info,
     enable_alb=True,
     env=cdk.Environment(
         account=cdk.Aws.ACCOUNT_ID,
@@ -116,83 +118,83 @@ kubernetes_stack = EksStack(
 kubernetes_stack.add_stack_dependency(lustre_stack)
 
 
-llm_eks_stack = LlmEksStack(
+llm_manifest_stack = LlmManifestStack(
     app,
-    "Llm",
+    "LlmLoader",
     cluster=kubernetes_stack.eks_cluster,
     lustre_info=lustre_stack.luster_info,
-    karpenter_node_role_name=kubernetes_stack.karpenter_node_role_name,
+    karpenter_chart=kubernetes_stack.karpenter,
     env=cdk.Environment(
         account=cdk.Aws.ACCOUNT_ID,
         region=cdk.Aws.REGION,
     ),
-    description="LLM and Embedding models download on EKS"
+    description="LLM and Embedding models download and deployment"
 )
-llm_eks_stack.add_stack_dependency(kubernetes_stack)
+llm_manifest_stack.add_stack_dependency(kubernetes_stack)
 
 
-qdrant_eks_stack = QdrantEksStack(
-    app,
-    "Qdrant",
-    cluster=kubernetes_stack.eks_cluster,
-    env=cdk.Environment(
-        account=cdk.Aws.ACCOUNT_ID,
-        region=cdk.Aws.REGION,
-    ),
-    description="Qdrant vector database for EKS cluster"
-)
-qdrant_eks_stack.add_stack_dependency(kubernetes_stack)
+# qdrant_eks_stack = QdrantEksStack(
+#     app,
+#     "Qdrant",
+#     cluster=kubernetes_stack.eks_cluster,
+#     env=cdk.Environment(
+#         account=cdk.Aws.ACCOUNT_ID,
+#         region=cdk.Aws.REGION,
+#     ),
+#     description="Qdrant vector database for EKS cluster"
+# )
+# qdrant_eks_stack.add_stack_dependency(kubernetes_stack)
 
 
-zipkin_eks_stack = ZipkinEksStack(
-    app,
-    "Zipkin",
-    cluster=kubernetes_stack.eks_cluster,
-    env=cdk.Environment(
-        account=cdk.Aws.ACCOUNT_ID,
-        region=cdk.Aws.REGION,
-    ),
-    description="Zipkin observability for EKS cluster"
-)
-zipkin_eks_stack.add_stack_dependency(kubernetes_stack)
+# zipkin_eks_stack = ZipkinEksStack(
+#     app,
+#     "Zipkin",
+#     cluster=kubernetes_stack.eks_cluster,
+#     env=cdk.Environment(
+#         account=cdk.Aws.ACCOUNT_ID,
+#         region=cdk.Aws.REGION,
+#     ),
+#     description="Zipkin observability for EKS cluster"
+# )
+# zipkin_eks_stack.add_stack_dependency(kubernetes_stack)
 
 
-ecomm_stack = EcommEksStack(
-    app,
-    "EcommEks",
-    cluster=kubernetes_stack.eks_cluster,
-    pg_info=postgres_stack.postgres_info,
-    docdb_info=documentdb_stack.docdb_info,
-    embedding_info=embedding_info,
-    model_info=model_info,
-    microservices_info=microservices_info,
-    qdrant_info=qdrant_eks_stack.qdrant_info,
-    redis_info=redis_stack.redis_info,
-    zipkin_info=zipkin_eks_stack.zipkin_info,
-    env=cdk.Environment(
-        account=cdk.Aws.ACCOUNT_ID,
-        region=cdk.Aws.REGION,
-    ),
-    description="Ecomm application on EKS"
-)
-ecomm_stack.add_stack_dependency(llm_eks_stack)
-ecomm_stack.add_stack_dependency(qdrant_eks_stack)
-ecomm_stack.add_stack_dependency(zipkin_eks_stack)
+# ecomm_stack = EcommEksStack(
+#     app,
+#     "EcommEks",
+#     cluster=kubernetes_stack.eks_cluster,
+#     pg_info=postgres_stack.postgres_info,
+#     docdb_info=documentdb_stack.docdb_info,
+#     embedding_info=embedding_info,
+#     model_info=model_info,
+#     microservices_info=microservices_info,
+#     qdrant_info=qdrant_eks_stack.qdrant_info,
+#     redis_info=redis_stack.redis_info,
+#     zipkin_info=zipkin_eks_stack.zipkin_info,
+#     env=cdk.Environment(
+#         account=cdk.Aws.ACCOUNT_ID,
+#         region=cdk.Aws.REGION,
+#     ),
+#     description="Ecomm application on EKS"
+# )
+# ecomm_stack.add_stack_dependency(llm_eks_stack)
+# ecomm_stack.add_stack_dependency(qdrant_eks_stack)
+# ecomm_stack.add_stack_dependency(zipkin_eks_stack)
 
 
-eks_tools_stack = EksToolsStack(
-    app,
-    "EcommAppTools",
-    cluster=kubernetes_stack.eks_cluster,
-    docdb_info=documentdb_stack.docdb_info,
-    redis_info=redis_stack.redis_info,
-    env=cdk.Environment(
-        account=cdk.Aws.ACCOUNT_ID,
-        region=cdk.Aws.REGION,
-    ),
-    description="Observation tools for EKS cluster"
-)
-eks_tools_stack.add_stack_dependency(ecomm_stack)
+# eks_tools_stack = EksToolsStack(
+#     app,
+#     "EcommAppTools",
+#     cluster=kubernetes_stack.eks_cluster,
+#     docdb_info=documentdb_stack.docdb_info,
+#     redis_info=redis_stack.redis_info,
+#     env=cdk.Environment(
+#         account=cdk.Aws.ACCOUNT_ID,
+#         region=cdk.Aws.REGION,
+#     ),
+#     description="Observation tools for EKS cluster"
+# )
+# eks_tools_stack.add_stack_dependency(ecomm_stack)
 
 
 # spark_stack = SparkStack(

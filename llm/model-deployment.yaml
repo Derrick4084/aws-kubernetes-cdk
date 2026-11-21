@@ -17,11 +17,12 @@ spec:
     spec:
       serviceAccountName: model-storage
       nodeSelector:
-        karpenter.sh/nodepool: llm-gpu-nodepool
+        workload-type: llm-inference
       tolerations:
       - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
+        operator: Equal
+        value: "true"
+        effect: NoSchedule 
       initContainers:
       - name: wait-for-model-download
         image: public.ecr.aws/docker/library/busybox:1.36
@@ -30,7 +31,7 @@ spec:
           - -c
           - |
             set -eu
-            until [ -f /model-cache/models/Llama-3.1-8B-Instruct/.llama-download-complete ]; do
+            until [ -f /model-cache/models/download/.llama-download-complete ]; do
               echo "Waiting for LLM model download to complete..."
               sleep 10
             done
@@ -45,6 +46,17 @@ spec:
         command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]     
         ports:
         - containerPort: 8081
+        env:
+        - name: HF_HOME
+          value: "/model-cache/cache"
+        - name: TRANSFORMERS_CACHE
+          value: "/model-cache/cache"
+        - name: TRITON_CACHE_DIR
+          value: "/model-cache/cache/triton"
+        - name: VLLM_CACHE_ROOT
+          value: "/model-cache/cache/vllm"
+        - name: PYTORCH_CUDA_ALLOC_CONF
+          value: "expandable_segments:True"
         args:
         - "--model=/model-cache/models/Llama-3.1-8B-Instruct"
         - "--host=0.0.0.0"
@@ -52,7 +64,6 @@ spec:
         - "--tensor-parallel-size=1"
         - "--gpu-memory-utilization=0.9"
         - "--max-model-len=4096"
-        - "--enforce-eager"
         - "--enable-auto-tool-choice"
         - "--tool-call-parser=llama3_json"
         volumeMounts:
@@ -64,11 +75,11 @@ spec:
           limits:
             nvidia.com/gpu: 1
             cpu: "8"
-            memory: "32Gi"
+            memory: "24Gi"
           requests:
             nvidia.com/gpu: 1
             memory: "16Gi"
-            cpu: "4"        
+            cpu: "4"       
       volumes:
         - name: model-cache
           persistentVolumeClaim:
@@ -76,7 +87,7 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 128Gi
+            sizeLimit: 8Gi
 
 ---
 apiVersion: v1

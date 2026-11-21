@@ -1,21 +1,35 @@
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: embeddings-nodeclass
+  name: embeddings-nc
 spec:
-  role: {role_name}
+
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2      # ← Allows userData scripts to reach IMDS
+    httpTokens: required
+
+  role: "{role_name}"
 
   amiSelectorTerms:
     - alias: al2023@latest
 
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: {clustername}
+        karpenter.sh/discovery: "{cluster_name}"
 
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: {clustername}
+        karpenter.sh/discovery: "{cluster_name}"
 
   tags:
-    karpenter.sh/discovery: {clustername}
-    workload-type: embeddings
+    karpenter.sh/discovery: "{cluster_name}"
+    workload-type: embedding
+
+  userData: |
+    #!/bin/bash
+    dnf install -y kmod-lustre-client lustre-client
+    depmod -a
+    modprobe lustre
+    

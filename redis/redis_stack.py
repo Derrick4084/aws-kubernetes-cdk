@@ -1,6 +1,7 @@
 from aws_cdk import (
     Stack,
     aws_ec2 as ec2,
+    aws_secretsmanager as sm,
     aws_elasticache as elasticache,
     Token,
     RemovalPolicy,
@@ -45,6 +46,15 @@ class RedisClusterStack(Stack):
             cache_subnet_group_name="redis-subnet-group"
         )
 
+        self.redis_secret = sm.Secret(
+            self, "RedisSecret",
+            secret_name="redis-secret",
+            generate_secret_string=sm.SecretStringGenerator(
+                exclude_punctuation=True,
+                password_length=16,
+            )
+        )
+
         self.redis_cluster = elasticache.CfnReplicationGroup(
             self, "RedisCluster",
             replication_group_description="Redis replication group",
@@ -59,7 +69,8 @@ class RedisClusterStack(Stack):
             num_cache_clusters=2,
             at_rest_encryption_enabled=True,
             transit_encryption_enabled=True,
-            transit_encryption_mode="required"    
+            transit_encryption_mode="required",
+            auth_token=self.redis_secret.secret_value.unsafe_unwrap()
         )
         self.redis_cluster.apply_removal_policy(RemovalPolicy.DESTROY)
 
@@ -71,6 +82,7 @@ class RedisClusterStack(Stack):
         return {
             "redis-endpoint": Token.as_string(self.redis_cluster.attr_primary_end_point_address),
             "redis-port": Token.as_string(self.redis_cluster.attr_primary_end_point_port),
-            "redis-sg-id": self.redis_sg.security_group_id
+            "redis-sg-id": self.redis_sg.security_group_id,
+            "redis-secret-name": self.redis_secret.secret_name
         }
 
